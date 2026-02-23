@@ -22,3 +22,10 @@ const child = spawn(
 child.on('exit', (code, signal) => {
   process.exit(code ?? (signal === 'SIGTERM' ? 143 : 1));
 });
+
+// Forward signals so Railway (or Ctrl+C) shuts down Next.js cleanly
+['SIGTERM', 'SIGINT'].forEach((sig) => {
+  process.on(sig, () => {
+    child.kill(sig);
+  });
+});
