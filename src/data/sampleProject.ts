@@ -21,6 +21,7 @@ export const SAMPLE_PROJECT: Project = {
   },
   persona: precisionTech,
   characters: [],
+  mockups: [],
   scenes: [
     {
       scene_number: 1,

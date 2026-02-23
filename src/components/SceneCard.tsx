@@ -275,8 +275,8 @@ export default function SceneCard({
           <textarea
             value={scene.nano_prompt}
             onChange={(e) => update({ nano_prompt: e.target.value })}
-            rows={2}
-            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-none"
+            rows={Math.max(2, Math.min(12, (scene.nano_prompt?.split("\n").length ?? 0) + 1))}
+            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-y min-h-[4rem]"
             placeholder="e.g. Same layout with warmer lighting, or: UI screen on a desk at night"
           />
         </div>
@@ -314,23 +314,25 @@ export default function SceneCard({
           <textarea
             value={scene.veo_prompt}
             onChange={(e) => update({ veo_prompt: e.target.value })}
-            rows={2}
-            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-none"
+            rows={Math.max(2, Math.min(12, (scene.veo_prompt?.split("\n").length ?? 0) + 1))}
+            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-y min-h-[4rem]"
             placeholder="Motion prompt"
           />
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-0.5">VO (2 lines)</label>
-          <input
+          <textarea
             value={scene.vo_line_1}
             onChange={(e) => update({ vo_line_1: e.target.value })}
-            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none mb-1"
+            rows={Math.max(2, Math.min(4, (scene.vo_line_1?.split("\n").length ?? 0) + 1))}
+            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-y min-h-[2.5rem] mb-1"
             placeholder="Line 1"
           />
-          <input
+          <textarea
             value={scene.vo_line_2}
             onChange={(e) => update({ vo_line_2: e.target.value })}
-            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none"
+            rows={Math.max(2, Math.min(4, (scene.vo_line_2?.split("\n").length ?? 0) + 1))}
+            className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-y min-h-[2.5rem]"
             placeholder="Line 2"
           />
         </div>

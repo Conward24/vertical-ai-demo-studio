@@ -8,12 +8,13 @@ import { updateSceneCosts } from "@/lib/costEngine";
 import ProjectWizard from "@/components/ProjectWizard";
 import PersonaSelector from "@/components/PersonaSelector";
 import CharacterStudio from "@/components/CharacterStudio";
+import MockupStudio from "@/components/MockupStudio";
 import Storyboard from "@/components/Storyboard";
 import BudgetDashboard from "@/components/BudgetDashboard";
 import SettingsPanel from "@/components/SettingsPanel";
 import ExportImport from "@/components/ExportImport";
 
-type Tab = "project" | "storyboard" | "characters" | "budget" | "settings";
+type Tab = "project" | "mockups" | "storyboard" | "characters" | "budget" | "settings";
 
 function emptyProject(): Project {
   const persona = PERSONAS[0];
@@ -35,6 +36,7 @@ function emptyProject(): Project {
     },
     persona,
     characters: [],
+    mockups: [],
     scenes: [],
     project_notes: "",
   };
@@ -90,6 +92,26 @@ export default function Home() {
 
   const handleGenerateScenes = useCallback(async () => {
     if (!project || !settings) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const isPublicUrl = (url: string) => {
+      try {
+        const u = new URL(url.startsWith("http") ? url : `${origin}${url}`);
+        return u.hostname !== "localhost" && u.hostname !== "127.0.0.1";
+      } catch {
+        return false;
+      }
+    };
+    const mockupUrls = (project.mockups ?? [])
+      .map((m) => (m.image_url.startsWith("http") ? m.image_url : `${origin}${m.image_url}`))
+      .filter(isPublicUrl);
+    const charactersWithRefs = (project.characters ?? []).filter(
+      (c) => c.reference_image_url && isPublicUrl(c.reference_image_url.startsWith("http") ? c.reference_image_url : `${origin}${c.reference_image_url}`)
+    );
+    const characterUrls = charactersWithRefs.map((c) =>
+      (c.reference_image_url!).startsWith("http") ? c.reference_image_url! : `${origin}${c.reference_image_url!}`
+    );
+    const characterIds = charactersWithRefs.map((c) => c.id);
+
     setGenerating(true);
     try {
       const res = await fetch("/api/generate-scenes", {
@@ -117,11 +139,29 @@ export default function Home() {
             color_behavior: project.persona.color_behavior,
           },
           brandMetadata: project.config.brand_kit,
+          mockupImageUrls: mockupUrls.length > 0 ? mockupUrls : undefined,
+          characterImageUrls: characterUrls.length > 0 ? characterUrls : undefined,
+          characterIds: characterIds.length > 0 ? characterIds : undefined,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
-      const scenes: Scene[] = data.scenes ?? [];
+      if (!res.ok) throw new Error(data.error || data.details || "Generation failed");
+      const rawScenes = (data.scenes ?? []) as (Scene & { mockup_index?: number; character_index?: number })[];
+      const mockupImageUrls = (data.mockupImageUrls ?? mockupUrls) as string[];
+      const resolvedCharacterIds = (data.characterIds ?? characterIds) as string[];
+
+      const scenes: Scene[] = rawScenes.map((s) => {
+        const { mockup_index, character_index, ...rest } = s;
+        const scene: Scene = { ...rest };
+        if (typeof mockup_index === "number" && mockupImageUrls[mockup_index]) {
+          scene.attached_mockup_url = mockupImageUrls[mockup_index];
+        }
+        if (typeof character_index === "number" && resolvedCharacterIds[character_index]) {
+          scene.character_id = resolvedCharacterIds[character_index];
+        }
+        return scene;
+      });
+
       updateScenes(scenes.length ? scenes : project.scenes);
       setGenerateError(null);
     } catch (e) {
@@ -148,6 +188,7 @@ export default function Home() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "project", label: "Project" },
+    { id: "mockups", label: "Mockups" },
     { id: "storyboard", label: "Storyboard" },
     { id: "characters", label: "Characters" },
     { id: "budget", label: "Budget" },
@@ -260,6 +301,17 @@ export default function Home() {
               onScenesChange={updateScenes}
               onGenerate={handleGenerateScenes}
               generating={generating}
+            />
+          </div>
+        )}
+
+        {activeTab === "mockups" && (
+          <div className="max-w-2xl">
+            <MockupStudio
+              mockups={project.mockups ?? []}
+              onMockupsChange={(mockups) =>
+                persistProject({ ...project, mockups })
+              }
             />
           </div>
         )}

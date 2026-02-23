@@ -4,6 +4,8 @@ export interface Persona {
   id: string;
   name: string;
   description: string;
+  /** Optional preview image URL for wizard (e.g. mood / style reference). */
+  image_url?: string;
   motion_intensity: number;
   lighting_style: string;
   ui_dominance: number;
@@ -49,6 +51,13 @@ export interface ReferenceCharacter {
   reference_image_url?: string;
 }
 
+/** Project-level mockup image for storyboard generation. No description required – Gemini infers from image. */
+export interface ProjectMockup {
+  id: string;
+  /** Public URL (e.g. /uploads/... or Replicate). Must be reachable by Replicate when generating scenes. */
+  image_url: string;
+}
+
 export interface BrandKit {
   logo_url?: string;
   font_primary?: string;
@@ -76,6 +85,8 @@ export interface Project {
   config: ProjectConfig;
   persona: Persona;
   characters: ReferenceCharacter[];
+  /** Mockup images for the film. Gemini sees these when generating scenes and assigns them by visual content. */
+  mockups: ProjectMockup[];
   scenes: Scene[];
   project_notes: string;
 }
