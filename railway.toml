@@ -1,0 +1,4 @@
+# Railway deploy config: health check must return 200 so the container isn’t stopped
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 60
