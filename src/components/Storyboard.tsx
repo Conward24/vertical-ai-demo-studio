@@ -13,12 +13,14 @@ function DraggableSceneCard({
   scene,
   index,
   referenceImageUrl,
+  characters,
   onUpdate,
   onMove,
 }: {
   scene: Scene;
   index: number;
   referenceImageUrl?: string | null;
+  characters: ReferenceCharacter[];
   onUpdate: (scene: Scene) => void;
   onMove: (from: number, to: number) => void;
 }) {
@@ -48,6 +50,7 @@ function DraggableSceneCard({
         scene={scene}
         onUpdate={onUpdate}
         referenceImageUrl={referenceImageUrl}
+        characters={characters}
         isDragging={isDragging}
         dragHandleProps={{}}
       />
@@ -70,6 +73,18 @@ function StoryboardInner({
 }) {
   const scenes = Array.isArray(scenesProp) ? scenesProp : [];
   const firstRefImageUrl = characters.find((c) => c.reference_image_url)?.reference_image_url ?? null;
+
+  const getReferenceImageUrl = useCallback(
+    (scene: Scene): string | null => {
+      if (!scene.uses_character) return null;
+      if (scene.character_id) {
+        const c = characters.find((ch) => ch.id === scene.character_id);
+        return c?.reference_image_url ?? null;
+      }
+      return firstRefImageUrl;
+    },
+    [characters, firstRefImageUrl]
+  );
 
   const moveScene = useCallback(
     (from: number, to: number) => {
@@ -117,6 +132,7 @@ function StoryboardInner({
         status: "Draft",
         comment: "",
         version: 1,
+        character_id: undefined,
       },
     ]);
   }, [scenes, onScenesChange]);
@@ -158,7 +174,8 @@ function StoryboardInner({
               key={`${scene.scene_number}-${i}`}
               scene={scene}
               index={i}
-              referenceImageUrl={scene.uses_character ? firstRefImageUrl : null}
+              referenceImageUrl={getReferenceImageUrl(scene)}
+              characters={characters}
               onUpdate={updateScene}
               onMove={moveScene}
             />

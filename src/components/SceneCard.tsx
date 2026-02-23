@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Scene, SceneStatus } from "@/types";
+import type { Scene, SceneStatus, ReferenceCharacter } from "@/types";
 
 const STATUS_OPTIONS: SceneStatus[] = ["Draft", "In Review", "Approved", "Locked"];
 
@@ -10,6 +10,8 @@ interface SceneCardProps {
   onUpdate: (scene: Scene) => void;
   /** When scene uses_character, pass the reference image URL for NanoBanana. */
   referenceImageUrl?: string | null;
+  /** List of project characters for per-scene character selection. */
+  characters?: ReferenceCharacter[];
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
@@ -18,6 +20,7 @@ export default function SceneCard({
   scene,
   onUpdate,
   referenceImageUrl,
+  characters = [],
   isDragging,
   dragHandleProps,
 }: SceneCardProps) {
@@ -216,12 +219,35 @@ export default function SceneCard({
             <input
               type="checkbox"
               checked={scene.uses_character}
-              onChange={(e) => update({ uses_character: e.target.checked })}
+              onChange={(e) =>
+                update({
+                  uses_character: e.target.checked,
+                  character_id: e.target.checked ? scene.character_id ?? characters.find((c) => c.reference_image_url)?.id : undefined,
+                })
+              }
               className="rounded border-border"
             />
             Character
           </label>
         </div>
+        {scene.uses_character && characters.length > 0 && (
+          <div>
+            <label className="block text-xs text-zinc-500 mb-0.5">Which character</label>
+            <select
+              value={scene.character_id ?? ""}
+              onChange={(e) => update({ character_id: e.target.value || undefined })}
+              className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none"
+            >
+              <option value="">Select…</option>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.role_label?.trim() || c.anchor_description?.trim() || `Character (${c.id.slice(-6)})`}
+                  {!c.reference_image_url ? " — no reference image" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-xs text-zinc-500 mb-0.5">Upload mockup image</label>
           {scene.attached_mockup_url ? (

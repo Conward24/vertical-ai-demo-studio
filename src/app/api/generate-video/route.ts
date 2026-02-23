@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         aspect_ratio: "9:16",
         duration: 8,
         negative_prompt: DEFAULT_NEGATIVE_PROMPT,
+        generate_audio: false,
       },
     });
     const url = getOutputUrl(output);

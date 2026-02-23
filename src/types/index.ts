@@ -19,6 +19,8 @@ export interface Scene {
   purpose: string;
   mockup_required: boolean;
   uses_character: boolean;
+  /** When uses_character is true, which character's reference to use (id from project.characters). */
+  character_id?: string;
   nano_prompt: string;
   veo_prompt: string;
   vo_line_1: string;
