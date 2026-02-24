@@ -1,17 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import type { Scene, SceneStatus, ReferenceCharacter } from "@/types";
+import type { Scene, SceneStatus, ReferenceCharacter, ProjectMockup } from "@/types";
 
 const STATUS_OPTIONS: SceneStatus[] = ["Draft", "In Review", "Approved", "Locked"];
+
+function getMockupUrls(scene: Scene): string[] {
+  if (scene.attached_mockup_urls?.length) return scene.attached_mockup_urls;
+  return scene.attached_mockup_url ? [scene.attached_mockup_url] : [];
+}
 
 interface SceneCardProps {
   scene: Scene;
   onUpdate: (scene: Scene) => void;
-  /** When scene uses_character, pass the reference image URL for NanoBanana. */
   referenceImageUrl?: string | null;
-  /** List of project characters for per-scene character selection. */
   characters?: ReferenceCharacter[];
+  mockups?: ProjectMockup[];
+  onImageGenerated?: () => void;
+  onVideoGenerated?: () => void;
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
@@ -21,6 +27,9 @@ export default function SceneCard({
   onUpdate,
   referenceImageUrl,
   characters = [],
+  mockups = [],
+  onImageGenerated,
+  onVideoGenerated,
   isDragging,
   dragHandleProps,
 }: SceneCardProps) {
@@ -34,23 +43,31 @@ export default function SceneCard({
   };
 
   const handleAttachMockup = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files?.length) return;
     setGenError(null);
     setUploadingMockup(true);
+    let urls = [...getMockupUrls(scene)];
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      if (data.url) update({ attached_mockup_url: data.url });
+      for (let i = 0; i < files.length; i++) {
+        const form = new FormData();
+        form.append("file", files[i]);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Upload failed");
+        if (data.url) urls.push(data.url);
+      }
+      if (urls.length > 0) setMockupUrls(urls);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingMockup(false);
       e.target.value = "";
     }
+  };
+
+  const setMockupUrls = (urls: string[]) => {
+    update({ attached_mockup_urls: urls.length ? urls : undefined, attached_mockup_url: urls[0] });
   };
 
   const handleGenerateImage = async () => {
@@ -60,8 +77,7 @@ export default function SceneCard({
     }
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const toAbsolute = (url: string) => (url.startsWith("http") ? url : `${origin}${url}`);
-    const refUrls: string[] = [];
-    if (scene.attached_mockup_url) refUrls.push(toAbsolute(scene.attached_mockup_url));
+    const refUrls: string[] = [...getMockupUrls(scene).map(toAbsolute)];
     if (referenceImageUrl) refUrls.push(toAbsolute(referenceImageUrl));
     setGenError(null);
     setGeneratingImage(true);
@@ -77,6 +93,7 @@ export default function SceneCard({
       if (!res.ok) throw new Error(data.details || data.error || "Failed");
       if (data.url) {
         update({ generated_image_url: data.url });
+        onImageGenerated?.();
         if (data.skipped_reference) {
           setGenError("Image created without your mockup (Replicate can’t use uploads on localhost). Deploy the app to use mockups.");
           setTimeout(() => setGenError(null), 6000);
@@ -96,8 +113,10 @@ export default function SceneCard({
       setGenError("Add a Veo prompt first");
       return;
     }
-    const imageUrl = scene.attached_mockup_url
-      ? (scene.attached_mockup_url.startsWith("http") ? scene.attached_mockup_url : `${typeof window !== "undefined" ? window.location.origin : ""}${scene.attached_mockup_url}`)
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const mockups = getMockupUrls(scene);
+    const imageUrl = mockups[0]
+      ? (mockups[0].startsWith("http") ? mockups[0] : `${origin}${mockups[0]}`)
       : scene.generated_image_url;
     if (!imageUrl) {
       setGenError("Attach a mockup image or generate an image first (Veo needs a starting frame)");
@@ -116,7 +135,10 @@ export default function SceneCard({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.details || "Failed");
-      if (data.url) update({ generated_video_url: data.url });
+      if (data.url) {
+        update({ generated_video_url: data.url });
+        onVideoGenerated?.();
+      }
     } catch (e) {
       setGenError(e instanceof Error ? e.message : "Video generation failed");
     } finally {
@@ -144,21 +166,14 @@ export default function SceneCard({
         </select>
       </div>
       <div className="p-3 space-y-2 flex-1 overflow-y-auto scrollbar-thin max-h-96">
-        {(scene.attached_mockup_url || scene.generated_image_url || scene.generated_video_url) && (
+        {(scene.attached_mockup_url || getMockupUrls(scene).length > 0 || scene.generated_image_url || scene.generated_video_url) && (
           <div className="rounded border border-border bg-surface overflow-hidden space-y-2">
-            {scene.attached_mockup_url && (
+            {getMockupUrls(scene).length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-xs text-zinc-500">Attached mockup</p>
-                  <a
-                    href={scene.attached_mockup_url.startsWith("http") ? scene.attached_mockup_url : `${typeof window !== "undefined" ? window.location.origin : ""}${scene.attached_mockup_url}`}
-                    download
-                    className="text-xs text-brand hover:underline"
-                  >
-                    Download
-                  </a>
+                <div className="flex justify-between items-center mb-0.5">
+                  <p className="text-xs text-zinc-500">Attached mockup{getMockupUrls(scene).length > 1 ? "s" : ""} ({getMockupUrls(scene).length})</p>
                 </div>
-                <img src={scene.attached_mockup_url} alt="Mockup" className="w-full aspect-[9/16] object-cover rounded" />
+                <img src={getMockupUrls(scene)[0]} alt="Mockup" className="w-full aspect-[9/16] object-cover rounded" />
               </div>
             )}
             {scene.generated_image_url && (
@@ -249,25 +264,55 @@ export default function SceneCard({
           </div>
         )}
         <div>
-          <label className="block text-xs text-zinc-500 mb-0.5">Upload mockup image</label>
-          {scene.attached_mockup_url ? (
+          <label className="block text-xs text-zinc-500 mb-0.5">Mockup image(s)</label>
+          {getMockupUrls(scene).length > 0 ? (
             <div className="space-y-1">
-              <img src={scene.attached_mockup_url} alt="Mockup" className="w-full aspect-video object-contain rounded border border-border bg-surface" />
+              <div className="flex flex-wrap gap-1">
+                {getMockupUrls(scene).map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img src={url.startsWith("http") ? url : `${typeof window !== "undefined" ? window.location.origin : ""}${url}`} alt="" className="w-14 h-14 object-cover rounded border border-border" />
+                    <button type="button" onClick={() => setMockupUrls(getMockupUrls(scene).filter((_, i) => i !== idx))} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none">×</button>
+                  </div>
+                ))}
+              </div>
               <div className="flex gap-1">
                 <label className="rounded border border-border px-2 py-1 text-xs text-zinc-400 hover:bg-surface cursor-pointer">
-                  Replace
-                  <input type="file" accept="image/*" className="hidden" onChange={handleAttachMockup} disabled={uploadingMockup} />
+                  Add more
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleAttachMockup} disabled={uploadingMockup} />
                 </label>
-                <button type="button" onClick={() => update({ attached_mockup_url: undefined })} className="text-xs text-red-400 hover:underline">
-                  Remove
-                </button>
+                <button type="button" onClick={() => setMockupUrls([])} className="text-xs text-red-400 hover:underline">Clear all</button>
               </div>
             </div>
           ) : (
             <label className="block rounded border-2 border-dashed border-brand/50 px-3 py-3 text-xs text-zinc-400 hover:bg-surface hover:border-brand cursor-pointer text-center">
-              {uploadingMockup ? "Uploading…" : "Choose file — JPEG, PNG, WebP or GIF (max 10MB)"}
-              <input type="file" accept="image/*" className="hidden" onChange={handleAttachMockup} disabled={uploadingMockup} />
+              {uploadingMockup ? "Uploading…" : "Choose file(s) — multiple allowed"}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleAttachMockup} disabled={uploadingMockup} />
             </label>
+          )}
+          {mockups.length > 0 && (
+            <div className="mt-1.5">
+              <p className="text-[10px] text-zinc-500 mb-1">Or add from project mockups:</p>
+              <div className="flex flex-wrap gap-1">
+                {mockups.map((m) => {
+                  const current = getMockupUrls(scene);
+                  const isIn = current.includes(m.image_url);
+                  return (
+                    <label key={m.id} className="flex items-center gap-1 rounded border border-border px-2 py-1 text-[10px] text-zinc-400 hover:bg-surface cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isIn}
+                        onChange={() => {
+                          if (isIn) setMockupUrls(current.filter((u) => u !== m.image_url));
+                          else setMockupUrls([...current, m.image_url]);
+                        }}
+                        className="rounded"
+                      />
+                      <img src={m.image_url.startsWith("http") ? m.image_url : `${typeof window !== "undefined" ? window.location.origin : ""}${m.image_url}`} alt="" className="w-6 h-6 object-cover rounded" />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
         <div>
@@ -290,10 +335,10 @@ export default function SceneCard({
             >
               {generatingImage ? "Generating image…" : "Generate image"}
             </button>
-            {scene.attached_mockup_url && (
+            {getMockupUrls(scene).length > 0 && (
               <p className="text-[10px] text-zinc-500 mt-0.5">Uses your mockup + prompt.</p>
             )}
-            {referenceImageUrl && !scene.attached_mockup_url && (
+            {referenceImageUrl && getMockupUrls(scene).length === 0 && (
               <p className="text-[10px] text-zinc-500 mt-0.5">Uses character reference + prompt.</p>
             )}
           </div>
@@ -302,8 +347,8 @@ export default function SceneCard({
           <button
             type="button"
             onClick={handleGenerateVideo}
-            disabled={generatingVideo || !(scene.attached_mockup_url || scene.generated_image_url)}
-            title={!(scene.attached_mockup_url || scene.generated_image_url) ? "Attach mockup or generate image first" : undefined}
+            disabled={generatingVideo || !(getMockupUrls(scene)[0] || scene.generated_image_url)}
+            title={!(getMockupUrls(scene)[0] || scene.generated_image_url) ? "Attach mockup or generate image first" : undefined}
             className="w-full rounded border border-brand bg-brand/20 px-2 py-1.5 text-xs font-medium text-white hover:bg-brand/40 disabled:opacity-50"
           >
             {generatingVideo ? "Generating video…" : "Generate video"}

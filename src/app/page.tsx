@@ -90,6 +90,22 @@ export default function Home() {
     [project, settings, persistProject]
   );
 
+  const handleImageGenerated = useCallback(() => {
+    if (!project) return;
+    persistProject({
+      ...project,
+      image_generations_count: (project.image_generations_count ?? 0) + 1,
+    });
+  }, [project, persistProject]);
+
+  const handleVideoGenerated = useCallback(() => {
+    if (!project) return;
+    persistProject({
+      ...project,
+      video_generations_count: (project.video_generations_count ?? 0) + 1,
+    });
+  }, [project, persistProject]);
+
   const handleGenerateScenes = useCallback(async () => {
     if (!project || !settings) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -298,8 +314,11 @@ export default function Home() {
             <Storyboard
               scenes={project.scenes ?? []}
               characters={project.characters}
+              mockups={project.mockups ?? []}
               onScenesChange={updateScenes}
               onGenerate={handleGenerateScenes}
+              onImageGenerated={handleImageGenerated}
+              onVideoGenerated={handleVideoGenerated}
               generating={generating}
             />
           </div>
@@ -334,6 +353,8 @@ export default function Home() {
               pricing={settings.pricing}
               imagesPerScene={settings.pricing.recommended_images_per_scene}
               budgetCap={settings.budget_cap}
+              imageGenerationsCount={project.image_generations_count ?? 0}
+              videoGenerationsCount={project.video_generations_count ?? 0}
               onScenesUpdate={updateScenes}
             />
           </div>

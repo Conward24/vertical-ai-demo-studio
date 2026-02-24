@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import type { Scene, ReferenceCharacter } from "@/types";
+import type { Scene, ReferenceCharacter, ProjectMockup } from "@/types";
 import { autoSequence } from "@/lib/autoSequence";
 import SceneCard from "./SceneCard";
 
@@ -14,15 +14,21 @@ function DraggableSceneCard({
   index,
   referenceImageUrl,
   characters,
+  mockups,
   onUpdate,
   onMove,
+  onImageGenerated,
+  onVideoGenerated,
 }: {
   scene: Scene;
   index: number;
   referenceImageUrl?: string | null;
   characters: ReferenceCharacter[];
+  mockups: ProjectMockup[];
   onUpdate: (scene: Scene) => void;
   onMove: (from: number, to: number) => void;
+  onImageGenerated?: () => void;
+  onVideoGenerated?: () => void;
 }) {
   const [{ isDragging }, ref] = useDrag({
     type: SCENE_TYPE,
@@ -51,6 +57,9 @@ function DraggableSceneCard({
         onUpdate={onUpdate}
         referenceImageUrl={referenceImageUrl}
         characters={characters}
+        mockups={mockups}
+        onImageGenerated={onImageGenerated}
+        onVideoGenerated={onVideoGenerated}
         isDragging={isDragging}
         dragHandleProps={{}}
       />
@@ -61,14 +70,20 @@ function DraggableSceneCard({
 function StoryboardInner({
   scenes: scenesProp,
   characters = [],
+  mockups = [],
   onScenesChange,
   onGenerate,
+  onImageGenerated,
+  onVideoGenerated,
   generating,
 }: {
   scenes: Scene[];
   characters?: ReferenceCharacter[];
+  mockups?: ProjectMockup[];
   onScenesChange: (scenes: Scene[]) => void;
   onGenerate: () => void;
+  onImageGenerated?: () => void;
+  onVideoGenerated?: () => void;
   generating: boolean;
 }) {
   const scenes = Array.isArray(scenesProp) ? scenesProp : [];
@@ -176,8 +191,11 @@ function StoryboardInner({
               index={i}
               referenceImageUrl={getReferenceImageUrl(scene)}
               characters={characters}
+              mockups={mockups}
               onUpdate={updateScene}
               onMove={moveScene}
+              onImageGenerated={onImageGenerated}
+              onVideoGenerated={onVideoGenerated}
             />
           ))}
         </div>
@@ -189,14 +207,20 @@ function StoryboardInner({
 export default function Storyboard({
   scenes,
   characters,
+  mockups,
   onScenesChange,
   onGenerate,
+  onImageGenerated,
+  onVideoGenerated,
   generating,
 }: {
   scenes: Scene[];
   characters?: ReferenceCharacter[];
+  mockups?: ProjectMockup[];
   onScenesChange: (scenes: Scene[]) => void;
   onGenerate: () => void;
+  onImageGenerated?: () => void;
+  onVideoGenerated?: () => void;
   generating: boolean;
 }) {
   return (
@@ -204,8 +228,11 @@ export default function Storyboard({
       <StoryboardInner
         scenes={scenes}
         characters={characters}
+        mockups={mockups}
         onScenesChange={onScenesChange}
         onGenerate={onGenerate}
+        onImageGenerated={onImageGenerated}
+        onVideoGenerated={onVideoGenerated}
         generating={generating}
       />
     </DndProvider>

@@ -39,6 +39,8 @@ export interface Scene {
   generated_video_url?: string;
   /** User-uploaded mockup image for this scene (e.g. /uploads/...). Used as starting frame for video if set. */
   attached_mockup_url?: string;
+  /** Multiple mockup/reference image URLs for NanoBanana (e.g. from project mockups). First is also used as Veo start frame. */
+  attached_mockup_urls?: string[];
 }
 
 export interface ReferenceCharacter {
@@ -89,6 +91,10 @@ export interface Project {
   mockups: ProjectMockup[];
   scenes: Scene[];
   project_notes: string;
+  /** Total image generations (NanoBanana) run for this project – for billing. */
+  image_generations_count?: number;
+  /** Total video generations (Veo) run for this project – for billing. */
+  video_generations_count?: number;
 }
 
 export interface PricingAssumptions {

@@ -12,6 +12,8 @@ interface BudgetDashboardProps {
   pricing: PricingAssumptions;
   imagesPerScene?: number;
   budgetCap?: number;
+  imageGenerationsCount?: number;
+  videoGenerationsCount?: number;
   onScenesUpdate?: (scenes: Scene[]) => void;
 }
 
@@ -20,6 +22,8 @@ export default function BudgetDashboard({
   pricing,
   imagesPerScene = 2.5,
   budgetCap,
+  imageGenerationsCount = 0,
+  videoGenerationsCount = 0,
   onScenesUpdate,
 }: BudgetDashboardProps) {
   const total = totalProjectCost(scenes, pricing, imagesPerScene);
@@ -29,12 +33,16 @@ export default function BudgetDashboard({
     onScenesUpdate?.(updated);
   };
 
+  const spendSoFar =
+    imageGenerationsCount * (pricing.nano_banana_per_image ?? 0.04) +
+    videoGenerationsCount * (pricing.veo_per_clip ?? 0.08);
+
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
       <h2 className="text-lg font-semibold text-white mb-4">Budget</h2>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-xs text-zinc-500">Total projected cost</p>
+          <p className="text-xs text-zinc-500">Total projected cost (estimate)</p>
           <p className="text-2xl font-semibold text-white">${total.toFixed(2)}</p>
         </div>
         {budgetCap != null && (
@@ -45,6 +53,19 @@ export default function BudgetDashboard({
             </p>
           </div>
         )}
+      </div>
+      <div className="mb-4 p-3 rounded border border-border bg-surface">
+        <p className="text-xs text-zinc-500 mb-1">Generations (for billing)</p>
+        <p className="text-sm text-zinc-300">
+          Images: <strong className="text-white">{imageGenerationsCount}</strong>
+          {" · "}
+          Videos: <strong className="text-white">{videoGenerationsCount}</strong>
+        </p>
+        <p className="text-xs text-zinc-500 mt-1">
+          Estimated spend so far: <strong className="text-white">${spendSoFar.toFixed(2)}</strong>
+          {" "}
+          (images × ${(pricing.nano_banana_per_image ?? 0.04).toFixed(2)} + videos × ${(pricing.veo_per_clip ?? 0.08).toFixed(2)})
+        </p>
       </div>
       <div className="mb-4">
         <p className="text-xs text-zinc-500 mb-1">Cost per scene</p>
