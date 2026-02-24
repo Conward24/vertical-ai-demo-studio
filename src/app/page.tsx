@@ -86,16 +86,22 @@ export default function Home() {
   );
 
   const updateScenes = useCallback(
-    (scenes: Scene[]) => {
-      if (!project) return;
+    (scenesOrFn: Scene[] | ((prev: Scene[]) => Scene[])) => {
       const pricing = settings?.pricing;
       const imgPerScene = pricing?.recommended_images_per_scene ?? 2.5;
-      const withCosts = pricing
-        ? updateSceneCosts(scenes, pricing, imgPerScene)
-        : scenes;
-      persistProject((prev) => (prev ? { ...prev, scenes: withCosts } : prev));
+      persistProject((prev) => {
+        if (!prev) return prev;
+        const nextScenes =
+          typeof scenesOrFn === "function"
+            ? scenesOrFn(prev.scenes ?? [])
+            : scenesOrFn;
+        const withCosts = pricing
+          ? updateSceneCosts(nextScenes, pricing, imgPerScene)
+          : nextScenes;
+        return { ...prev, scenes: withCosts };
+      });
     },
-    [project, settings, persistProject]
+    [settings, persistProject]
   );
 
   const handleImageGenerated = useCallback(() => {

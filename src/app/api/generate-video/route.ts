@@ -28,6 +28,14 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (image_url.trim().startsWith("data:")) {
+    return NextResponse.json(
+      {
+        error: "Veo requires a public image URL (Replicate must fetch it). Data URLs (e.g. from Google image fallback) are not supported. Use a mockup URL or a Replicate-generated image.",
+      },
+      { status: 400 }
+    );
+  }
   const duration = Math.min(8, Math.max(4, Number(rawDuration) || 8));
 
   try {

@@ -131,11 +131,21 @@ export default function SceneCard({
     }
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const mockups = getMockupUrls(scene);
-    const imageUrl = mockups[0]
+    const generated = scene.generated_image_url;
+    const mockupUrl = mockups[0]
       ? (mockups[0].startsWith("http") ? mockups[0] : `${origin}${mockups[0]}`)
-      : scene.generated_image_url;
+      : null;
+    // Prefer generated image (scene image) when it's a public URL; else use mockup
+    const imageUrl =
+      generated && !generated.startsWith("data:")
+        ? generated
+        : mockupUrl;
     if (!imageUrl) {
       setGenError("Attach a mockup image or generate an image first (Veo needs a starting frame)");
+      return;
+    }
+    if (imageUrl.startsWith("data:")) {
+      setGenError("Video needs a public image URL. This image was created via Google fallback (data URL). Attach a mockup as the starting frame, or generate the image again when Replicate is available.");
       return;
     }
     const duration = scene.video_duration_seconds ?? 8;
@@ -161,7 +171,12 @@ export default function SceneCard({
         scrollToMediaAfterRender.current = true;
       }
     } catch (e) {
-      setGenError(e instanceof Error ? e.message : "Video generation failed");
+      const msg = e instanceof Error ? e.message : "Video generation failed";
+      setGenError(
+        msg.includes("fetch") || msg === "Failed to fetch"
+          ? "Request failed. Ensure the starting image is a public URL (mockup or Replicate image). Video can take 1–2 minutes."
+          : msg
+      );
     } finally {
       setGeneratingVideo(false);
     }

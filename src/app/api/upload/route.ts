@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
+    const rawExt = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
+    const ext = rawExt.toLowerCase();
     const name = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
     const uploadDir = getUploadDir();
     await mkdir(uploadDir, { recursive: true });

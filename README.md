@@ -97,9 +97,11 @@ src/
 
 The app needs a **public URL** so Replicate can fetch your uploaded mockup and character images. Two options:
 
-### Option A: Railway (recommended — uploads work as-is)
+### Option A: Railway (recommended for uploads)
 
-Railway gives your app a persistent filesystem, so uploads to `public/uploads/` work and are served at `https://your-app.railway.app/uploads/...`.
+The app serves uploads at `https://your-app.railway.app/api/uploads/...`. So Replicate can fetch mockup/character images from that URL when generating.
+
+**Important:** By default Railway’s container filesystem is **ephemeral** (uploads are lost on deploy or restart). To avoid 404s when Replicate fetches your upload URLs, attach a **volume** so uploads persist:
 
 1. **Push your code to GitHub** (if you haven’t):
    ```bash
@@ -117,14 +119,19 @@ Railway gives your app a persistent filesystem, so uploads to `public/uploads/` 
 3. **Deploy from GitHub:**  
    New Project → **Deploy from GitHub repo** → choose `vertical-ai-demo-studio` → Railway will detect Next.js and build it.
 
-4. **Add your Replicate token:**  
+4. **Attach a volume (so uploads persist):**  
+   In your service → **Settings** (or **Variables** tab) → **Volumes** → **Add Volume**. Mount path: `/data`.  
+   Then add a variable: `RAILWAY_VOLUME_MOUNT_PATH` = `/data`.  
+   Uploads are then stored on the volume and survive deploys/restarts, so Replicate can fetch them.
+
+5. **Add your Replicate token:**  
    Open your service → **Variables** → Add variable:  
    `REPLICATE_API_TOKEN` = your token from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
 
-5. **Generate a domain:**  
+6. **Generate a domain:**  
    **Settings** → **Networking** → **Generate domain**. You’ll get a URL like `https://vertical-ai-demo-studio-production-xxxx.up.railway.app`.
 
-6. Open that URL. Upload mockups/character images and use **Generate image** — Replicate will be able to fetch them.
+7. Open that URL. Upload mockups/character images and use **Generate image** — Replicate will be able to fetch them.
 
 **Note:** Railway may spin down free-tier apps when idle; the first request after a while can be slow. Paid plans keep the app always on.
 

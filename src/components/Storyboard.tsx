@@ -80,7 +80,7 @@ function StoryboardInner({
   scenes: Scene[];
   characters?: ReferenceCharacter[];
   mockups?: ProjectMockup[];
-  onScenesChange: (scenes: Scene[]) => void;
+  onScenesChange: (scenes: Scene[] | ((prev: Scene[]) => Scene[])) => void;
   onGenerate: () => void;
   onImageGenerated?: () => void;
   onVideoGenerated?: (durationSeconds?: number) => void;
@@ -114,12 +114,13 @@ function StoryboardInner({
 
   const updateScene = useCallback(
     (updated: Scene) => {
-      const next = scenes.map((s) =>
-        s.scene_number === updated.scene_number ? updated : s
+      onScenesChange((prev) =>
+        prev.map((s) =>
+          s.scene_number === updated.scene_number ? updated : s
+        )
       );
-      onScenesChange(next);
     },
-    [scenes, onScenesChange]
+    [onScenesChange]
   );
 
   const runAutoSequence = useCallback(() => {
@@ -218,7 +219,7 @@ export default function Storyboard({
   scenes: Scene[];
   characters?: ReferenceCharacter[];
   mockups?: ProjectMockup[];
-  onScenesChange: (scenes: Scene[]) => void;
+  onScenesChange: (scenes: Scene[] | ((prev: Scene[]) => Scene[])) => void;
   onGenerate: () => void;
   onImageGenerated?: () => void;
   onVideoGenerated?: (durationSeconds?: number) => void;
