@@ -293,7 +293,7 @@ export default function SceneCard({
             {scene.attached_mockup_url && (
               <p className="text-[10px] text-zinc-500 mt-0.5">Uses your mockup + prompt.</p>
             )}
-            {scene.referenceImageUrl && !scene.attached_mockup_url && (
+            {referenceImageUrl && !scene.attached_mockup_url && (
               <p className="text-[10px] text-zinc-500 mt-0.5">Uses character reference + prompt.</p>
             )}
           </div>
