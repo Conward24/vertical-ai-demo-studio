@@ -25,13 +25,15 @@ AI-native production platform for designing and generating structured vertical (
    npm install
    ```
 
-3. **Set Replicate API token**  
-   Get a token from [Replicate Account → API tokens](https://replicate.com/account/api-tokens), then:
+3. **Set API token(s)**  
+   You need at least one of:
+   - **Replicate** — Get a token from [Replicate Account → API tokens](https://replicate.com/account/api-tokens). Used for Gemini (scene generation), Veo, and NanoBanana Pro image generation.
+   - **Google (optional fallback)** — Get a key from [Google AI Studio](https://aistudio.google.com/apikey). When Replicate is overloaded (e.g. “high demand” errors), the app will try Google’s same NanoBanana Pro model so image generation still works.
    ```bash
    cp .env.local.example .env.local
-   # Edit .env.local and set REPLICATE_API_TOKEN=your_token
+   # Edit .env.local: set REPLICATE_API_TOKEN and optionally GOOGLE_GENERATIVE_AI_API_KEY
    ```
-   Use one token for Gemini (scene generation), Veo, and NanoBanana Pro.
+   Use one Replicate token for Gemini, Veo, and NanoBanana Pro. Add `GOOGLE_GENERATIVE_AI_API_KEY` to avoid being blocked when Replicate is at capacity.
 
 4. **Start dev server**
    ```bash

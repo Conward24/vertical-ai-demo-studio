@@ -12,7 +12,7 @@ const RETRYABLE_PATTERNS = [
   /502/,
 ];
 
-function isRetryableError(e: unknown): boolean {
+export function isRetryableError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e ?? "");
   return RETRYABLE_PATTERNS.some((p) => p.test(message));
 }

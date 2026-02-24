@@ -58,9 +58,17 @@ export default function Home() {
     setSettings(s);
   }, []);
 
-  const persistProject = useCallback((p: Project) => {
-    setProject(p);
-    saveProject(p);
+  const persistProject = useCallback((p: Project | ((prev: Project | null) => Project)) => {
+    if (typeof p === "function") {
+      setProject((prev) => {
+        const next = p(prev);
+        if (next) saveProject(next);
+        return next;
+      });
+    } else {
+      setProject(p);
+      saveProject(p);
+    }
   }, []);
 
   const updateConfig = useCallback(
@@ -85,28 +93,34 @@ export default function Home() {
       const withCosts = pricing
         ? updateSceneCosts(scenes, pricing, imgPerScene)
         : scenes;
-      persistProject({ ...project, scenes: withCosts });
+      persistProject((prev) => (prev ? { ...prev, scenes: withCosts } : prev));
     },
     [project, settings, persistProject]
   );
 
   const handleImageGenerated = useCallback(() => {
-    if (!project) return;
-    persistProject({
-      ...project,
-      image_generations_count: (project.image_generations_count ?? 0) + 1,
-    });
-  }, [project, persistProject]);
+    persistProject(
+      (prev) =>
+        prev
+          ? { ...prev, image_generations_count: (prev.image_generations_count ?? 0) + 1 }
+          : prev
+    );
+  }, [persistProject]);
 
   const handleVideoGenerated = useCallback((durationSeconds?: number) => {
-    if (!project) return;
     const seconds = durationSeconds ?? 8;
-    persistProject({
-      ...project,
-      video_generations_count: (project.video_generations_count ?? 0) + 1,
-      video_generations_total_seconds: (project.video_generations_total_seconds ?? 0) + seconds,
-    });
-  }, [project, persistProject]);
+    persistProject(
+      (prev) =>
+        prev
+          ? {
+              ...prev,
+              video_generations_count: (prev.video_generations_count ?? 0) + 1,
+              video_generations_total_seconds:
+                (prev.video_generations_total_seconds ?? 0) + seconds,
+            }
+          : prev
+    );
+  }, [persistProject]);
 
   const handleGenerateScenes = useCallback(async () => {
     if (!project || !settings) return;

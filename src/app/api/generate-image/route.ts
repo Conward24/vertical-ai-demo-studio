@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
-import { withReplicateRetry } from "@/lib/replicateRetry";
+import { withReplicateRetry, isRetryableError } from "@/lib/replicateRetry";
+import { generateImageWithGoogle } from "@/lib/googleImage";
 
 export async function POST(request: NextRequest) {
   const token = process.env.REPLICATE_API_TOKEN;
-  if (!token) {
+  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+  if (!token && !googleKey) {
     return NextResponse.json(
-      { error: "REPLICATE_API_TOKEN is not set" },
+      { error: "Neither REPLICATE_API_TOKEN nor GOOGLE_GENERATIVE_AI_API_KEY is set. Add at least one in .env.local." },
       { status: 503 }
     );
   }
@@ -44,38 +47,77 @@ export async function POST(request: NextRequest) {
   });
   const skippedReference = allRefs.length > 0 && refUrls.length === 0;
 
-  try {
-    const replicate = new Replicate({ auth: token });
-    const input: Record<string, unknown> = {
-      prompt: prompt.trim(),
-      aspect_ratio: "9:16",
-      resolution: "2K",
-      output_format: "png",
-      safety_filter_level: "block_only_high",
-    };
-    if (refUrls.length > 0) {
-      input.image_input = refUrls;
+  let url: string | null = null;
+
+  if (token) {
+    try {
+      const replicate = new Replicate({ auth: token });
+      const input: Record<string, unknown> = {
+        prompt: prompt.trim(),
+        aspect_ratio: "9:16",
+        resolution: "2K",
+        output_format: "png",
+        safety_filter_level: "block_only_high",
+      };
+      if (refUrls.length > 0) {
+        input.image_input = refUrls;
+      }
+
+      const output = await withReplicateRetry(() =>
+        replicate.run("google/nano-banana-pro", { input })
+      );
+
+      url = getOutputUrl(output);
+    } catch (e) {
+      if (googleKey && isRetryableError(e)) {
+        try {
+          url = await generateImageWithGoogle(googleKey, {
+            prompt: prompt.trim(),
+            referenceImageUrls: refUrls.length > 0 ? refUrls : undefined,
+            aspectRatio: "9:16",
+            imageSize: "2K",
+          });
+        } catch (googleErr) {
+          const message = e instanceof Error ? e.message : "Unknown error";
+          const googleMessage = googleErr instanceof Error ? googleErr.message : "Unknown error";
+          return NextResponse.json(
+            { error: "Image generation failed (Replicate overloaded; Google fallback also failed)", details: `${message} | Google: ${googleMessage}` },
+            { status: 502 }
+          );
+        }
+      } else {
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return NextResponse.json(
+          { error: "Image generation failed", details: message },
+          { status: 502 }
+        );
+      }
     }
-
-    const output = await withReplicateRetry(() =>
-      replicate.run("google/nano-banana-pro", { input })
-    );
-
-    const url = getOutputUrl(output);
-    if (!url) {
+  } else if (googleKey) {
+    try {
+      url = await generateImageWithGoogle(googleKey, {
+        prompt: prompt.trim(),
+        referenceImageUrls: refUrls.length > 0 ? refUrls : undefined,
+        aspectRatio: "9:16",
+        imageSize: "2K",
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
       return NextResponse.json(
-        { error: "No image URL in model output" },
+        { error: "Image generation failed", details: message },
         { status: 502 }
       );
     }
-    return NextResponse.json({ url, skipped_reference: skippedReference });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
+  }
+
+  if (!url) {
     return NextResponse.json(
-      { error: "Image generation failed", details: message },
+      { error: "No image URL in model output" },
       { status: 502 }
     );
   }
+
+  return NextResponse.json({ url, skipped_reference: skippedReference });
 }
 
 function getOutputUrl(output: unknown): string | null {
