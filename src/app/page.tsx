@@ -58,7 +58,7 @@ export default function Home() {
     setSettings(s);
   }, []);
 
-  const persistProject = useCallback((p: Project | ((prev: Project | null) => Project)) => {
+  const persistProject = useCallback((p: Project | ((prev: Project | null) => Project | null)) => {
     if (typeof p === "function") {
       setProject((prev) => {
         const next = p(prev);
