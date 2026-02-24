@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Scene, SceneStatus, ReferenceCharacter, ProjectMockup } from "@/types";
 
 const STATUS_OPTIONS: SceneStatus[] = ["Draft", "In Review", "Approved", "Locked"];
@@ -39,6 +39,17 @@ export default function SceneCard({
   const [genError, setGenError] = useState<string | null>(null);
   /** Brief success message after image/video generation (e.g. "Image ready") */
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  /** Ref for media block so we can scroll it into view when a new image/video is ready */
+  const mediaBlockRef = useRef<HTMLDivElement>(null);
+  /** When set, scroll media into view on next render (after new image/video URL is in the scene) */
+  const scrollToMediaAfterRender = useRef(false);
+
+  useEffect(() => {
+    if (scrollToMediaAfterRender.current && mediaBlockRef.current) {
+      scrollToMediaAfterRender.current = false;
+      mediaBlockRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
 
   const update = (patch: Partial<Scene>) => {
     onUpdate({ ...scene, ...patch });
@@ -98,6 +109,7 @@ export default function SceneCard({
         onImageGenerated?.();
         setSuccessMessage("Image ready");
         setTimeout(() => setSuccessMessage(null), 2500);
+        scrollToMediaAfterRender.current = true;
         if (data.skipped_reference) {
           setGenError("Image created without your mockup (Replicate can’t use uploads on localhost). Deploy the app to use mockups.");
           setTimeout(() => setGenError(null), 6000);
@@ -146,6 +158,7 @@ export default function SceneCard({
         onVideoGenerated?.(duration);
         setSuccessMessage("Video ready");
         setTimeout(() => setSuccessMessage(null), 2500);
+        scrollToMediaAfterRender.current = true;
       }
     } catch (e) {
       setGenError(e instanceof Error ? e.message : "Video generation failed");
@@ -198,7 +211,7 @@ export default function SceneCard({
       </div>
       <div className="p-3 space-y-2 flex-1 overflow-y-auto scrollbar-thin max-h-96">
         {(scene.attached_mockup_url || getMockupUrls(scene).length > 0 || scene.generated_image_url || scene.generated_video_url) && (
-          <div className="rounded border border-border bg-surface overflow-hidden space-y-2">
+          <div ref={mediaBlockRef} className="rounded border border-border bg-surface overflow-hidden space-y-2">
             {getMockupUrls(scene).length > 0 && (
               <div>
                 <div className="flex justify-between items-center mb-0.5">
