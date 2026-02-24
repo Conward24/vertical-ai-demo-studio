@@ -98,11 +98,13 @@ export default function Home() {
     });
   }, [project, persistProject]);
 
-  const handleVideoGenerated = useCallback(() => {
+  const handleVideoGenerated = useCallback((durationSeconds?: number) => {
     if (!project) return;
+    const seconds = durationSeconds ?? 8;
     persistProject({
       ...project,
       video_generations_count: (project.video_generations_count ?? 0) + 1,
+      video_generations_total_seconds: (project.video_generations_total_seconds ?? 0) + seconds,
     });
   }, [project, persistProject]);
 
@@ -355,6 +357,7 @@ export default function Home() {
               budgetCap={settings.budget_cap}
               imageGenerationsCount={project.image_generations_count ?? 0}
               videoGenerationsCount={project.video_generations_count ?? 0}
+              videoGenerationsTotalSeconds={project.video_generations_total_seconds ?? 0}
               onScenesUpdate={updateScenes}
             />
           </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
+import { withReplicateRetry } from "@/lib/replicateRetry";
 
 export async function POST(request: NextRequest) {
   const token = process.env.REPLICATE_API_TOKEN;
@@ -56,7 +57,9 @@ export async function POST(request: NextRequest) {
       input.image_input = refUrls;
     }
 
-    const output = await replicate.run("google/nano-banana-pro", { input });
+    const output = await withReplicateRetry(() =>
+      replicate.run("google/nano-banana-pro", { input })
+    );
 
     const url = getOutputUrl(output);
     if (!url) {

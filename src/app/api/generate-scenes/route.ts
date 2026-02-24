@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
+import { withReplicateRetry } from "@/lib/replicateRetry";
 
 function isPublicUrl(url: string): boolean {
   try {
@@ -118,7 +119,9 @@ Output a JSON array of scene objects. Each object must have: scene_number, title
       input.images = images;
     }
 
-    const output = await replicate.run("google/gemini-2.5-flash", { input });
+    const output = await withReplicateRetry(() =>
+      replicate.run("google/gemini-2.5-flash", { input })
+    );
 
     const raw = Array.isArray(output) ? output.join("") : String(output ?? "");
     if (!raw.trim()) {
@@ -155,6 +158,7 @@ Output a JSON array of scene objects. Each object must have: scene_number, title
       status: "Draft",
       comment: "",
       version: 1,
+      video_duration_seconds: 8,
     }));
     return NextResponse.json({
       scenes: normalized,

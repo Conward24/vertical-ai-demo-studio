@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   pricing: {
     nano_banana_per_image: 0.04,
     veo_per_clip: 0.08,
+    veo_per_second: 0.1,
     vo_per_minute: 0.02,
     recommended_images_per_scene: 2.5,
   },

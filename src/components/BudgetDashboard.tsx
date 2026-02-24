@@ -14,6 +14,8 @@ interface BudgetDashboardProps {
   budgetCap?: number;
   imageGenerationsCount?: number;
   videoGenerationsCount?: number;
+  /** Total video seconds generated (for spend = this × veo_per_second). */
+  videoGenerationsTotalSeconds?: number;
   onScenesUpdate?: (scenes: Scene[]) => void;
 }
 
@@ -24,6 +26,7 @@ export default function BudgetDashboard({
   budgetCap,
   imageGenerationsCount = 0,
   videoGenerationsCount = 0,
+  videoGenerationsTotalSeconds = 0,
   onScenesUpdate,
 }: BudgetDashboardProps) {
   const total = totalProjectCost(scenes, pricing, imagesPerScene);
@@ -33,9 +36,10 @@ export default function BudgetDashboard({
     onScenesUpdate?.(updated);
   };
 
+  const perSecond = pricing.veo_per_second ?? 0.1;
   const spendSoFar =
     imageGenerationsCount * (pricing.nano_banana_per_image ?? 0.04) +
-    videoGenerationsCount * (pricing.veo_per_clip ?? 0.08);
+    videoGenerationsTotalSeconds * perSecond;
 
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-4">
@@ -60,11 +64,14 @@ export default function BudgetDashboard({
           Images: <strong className="text-white">{imageGenerationsCount}</strong>
           {" · "}
           Videos: <strong className="text-white">{videoGenerationsCount}</strong>
+          {videoGenerationsTotalSeconds > 0 && (
+            <> · Video seconds: <strong className="text-white">{videoGenerationsTotalSeconds}</strong></>
+          )}
         </p>
         <p className="text-xs text-zinc-500 mt-1">
           Estimated spend so far: <strong className="text-white">${spendSoFar.toFixed(2)}</strong>
           {" "}
-          (images × ${(pricing.nano_banana_per_image ?? 0.04).toFixed(2)} + videos × ${(pricing.veo_per_clip ?? 0.08).toFixed(2)})
+          (images × ${(pricing.nano_banana_per_image ?? 0.04).toFixed(2)} + video seconds × ${perSecond.toFixed(2)}/s)
         </p>
       </div>
       <div className="mb-4">

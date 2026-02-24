@@ -41,6 +41,8 @@ export interface Scene {
   attached_mockup_url?: string;
   /** Multiple mockup/reference image URLs for NanoBanana (e.g. from project mockups). First is also used as Veo start frame. */
   attached_mockup_urls?: string[];
+  /** Video duration in seconds for Veo (e.g. 4, 6, 8). Default 8 when generating. */
+  video_duration_seconds?: number;
 }
 
 export interface ReferenceCharacter {
@@ -95,11 +97,15 @@ export interface Project {
   image_generations_count?: number;
   /** Total video generations (Veo) run for this project – for billing. */
   video_generations_count?: number;
+  /** Total video seconds generated (for billing: spend = this × veo_per_second). */
+  video_generations_total_seconds?: number;
 }
 
 export interface PricingAssumptions {
   nano_banana_per_image: number;
   veo_per_clip: number;
+  /** Veo cost per second of video (billing: duration × this). */
+  veo_per_second: number;
   vo_per_minute: number;
   recommended_images_per_scene: number;
 }

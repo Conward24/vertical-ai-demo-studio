@@ -55,21 +55,22 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
             />
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Veo per clip ($)</label>
+            <label className="block text-xs text-zinc-500 mb-1">Veo per second ($)</label>
             <input
               type="number"
               step="0.01"
-              value={settings.pricing.veo_per_clip}
+              value={settings.pricing.veo_per_second ?? 0.1}
               onChange={(e) =>
                 update({
                   pricing: {
                     ...settings.pricing,
-                    veo_per_clip: Number(e.target.value) || 0,
+                    veo_per_second: Number(e.target.value) ?? 0.1,
                   },
                 })
               }
               className="w-full rounded border border-border bg-surface px-2 py-1 text-white focus:border-brand focus:outline-none"
             />
+            <p className="text-[10px] text-zinc-500 mt-0.5">Video cost = duration (s) × this rate</p>
           </div>
           <div>
             <label className="block text-xs text-zinc-500 mb-1">VO per minute ($)</label>

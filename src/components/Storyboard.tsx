@@ -28,7 +28,7 @@ function DraggableSceneCard({
   onUpdate: (scene: Scene) => void;
   onMove: (from: number, to: number) => void;
   onImageGenerated?: () => void;
-  onVideoGenerated?: () => void;
+  onVideoGenerated?: (durationSeconds?: number) => void;
 }) {
   const [{ isDragging }, ref] = useDrag({
     type: SCENE_TYPE,
@@ -83,7 +83,7 @@ function StoryboardInner({
   onScenesChange: (scenes: Scene[]) => void;
   onGenerate: () => void;
   onImageGenerated?: () => void;
-  onVideoGenerated?: () => void;
+  onVideoGenerated?: (durationSeconds?: number) => void;
   generating: boolean;
 }) {
   const scenes = Array.isArray(scenesProp) ? scenesProp : [];
@@ -148,6 +148,7 @@ function StoryboardInner({
         comment: "",
         version: 1,
         character_id: undefined,
+        video_duration_seconds: 8,
       },
     ]);
   }, [scenes, onScenesChange]);
@@ -220,7 +221,7 @@ export default function Storyboard({
   onScenesChange: (scenes: Scene[]) => void;
   onGenerate: () => void;
   onImageGenerated?: () => void;
-  onVideoGenerated?: () => void;
+  onVideoGenerated?: (durationSeconds?: number) => void;
   generating: boolean;
 }) {
   return (

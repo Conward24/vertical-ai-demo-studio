@@ -10,7 +10,8 @@ export function sceneCost(
     cost += (pricing.nano_banana_per_image ?? 0.04) * Math.ceil(imagesPerScene);
   }
   if (scene.veo_prompt?.trim()) {
-    cost += pricing.veo_per_clip ?? 0.08;
+    const seconds = scene.video_duration_seconds ?? 8;
+    cost += (pricing.veo_per_second ?? 0.1) * seconds;
   }
   const voLines = [scene.vo_line_1, scene.vo_line_2].filter(Boolean).join(" ");
   const approxWords = voLines.split(/\s+/).length;

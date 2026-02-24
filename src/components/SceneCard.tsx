@@ -17,7 +17,7 @@ interface SceneCardProps {
   characters?: ReferenceCharacter[];
   mockups?: ProjectMockup[];
   onImageGenerated?: () => void;
-  onVideoGenerated?: () => void;
+  onVideoGenerated?: (durationSeconds?: number) => void;
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
@@ -37,6 +37,8 @@ export default function SceneCard({
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [uploadingMockup, setUploadingMockup] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  /** Brief success message after image/video generation (e.g. "Image ready") */
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const update = (patch: Partial<Scene>) => {
     onUpdate({ ...scene, ...patch });
@@ -94,6 +96,8 @@ export default function SceneCard({
       if (data.url) {
         update({ generated_image_url: data.url });
         onImageGenerated?.();
+        setSuccessMessage("Image ready");
+        setTimeout(() => setSuccessMessage(null), 2500);
         if (data.skipped_reference) {
           setGenError("Image created without your mockup (Replicate can’t use uploads on localhost). Deploy the app to use mockups.");
           setTimeout(() => setGenError(null), 6000);
@@ -122,6 +126,7 @@ export default function SceneCard({
       setGenError("Attach a mockup image or generate an image first (Veo needs a starting frame)");
       return;
     }
+    const duration = scene.video_duration_seconds ?? 8;
     setGenError(null);
     setGeneratingVideo(true);
     try {
@@ -131,13 +136,16 @@ export default function SceneCard({
         body: JSON.stringify({
           image_url: imageUrl,
           prompt: scene.veo_prompt.trim(),
+          duration,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.details || "Failed");
       if (data.url) {
         update({ generated_video_url: data.url });
-        onVideoGenerated?.();
+        onVideoGenerated?.(duration);
+        setSuccessMessage("Video ready");
+        setTimeout(() => setSuccessMessage(null), 2500);
       }
     } catch (e) {
       setGenError(e instanceof Error ? e.message : "Video generation failed");
@@ -146,10 +154,33 @@ export default function SceneCard({
     }
   };
 
+  const isGenerating = generatingImage || generatingVideo;
+  const generatingLabel = generatingImage ? "Generating image…" : generatingVideo ? "Generating video…" : null;
+
   return (
     <div
-      className={`flex-shrink-0 w-72 rounded-lg border bg-surface-raised overflow-hidden flex flex-col ${isDragging ? "opacity-70 shadow-lg" : "border-border"}`}
+      className={`relative flex-shrink-0 w-72 rounded-lg border bg-surface-raised overflow-hidden flex flex-col ${isDragging ? "opacity-70 shadow-lg" : "border-border"}`}
     >
+      {isGenerating && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-lg bg-zinc-900/90 text-white"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <p className="mt-2 text-sm font-medium">{generatingLabel}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">This may take a minute…</p>
+        </div>
+      )}
+      {successMessage && !isGenerating && (
+        <div
+          className="absolute left-0 right-0 top-2 z-10 mx-2 rounded bg-emerald-600/95 px-2 py-1.5 text-center text-xs font-medium text-white shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          {successMessage}
+        </div>
+      )}
       <div
         className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface"
         {...dragHandleProps}
@@ -331,8 +362,11 @@ export default function SceneCard({
               type="button"
               onClick={handleGenerateImage}
               disabled={generatingImage}
-              className="w-full rounded bg-brand px-2 py-2 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded bg-brand px-2 py-2 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-70 disabled:cursor-not-allowed"
             >
+              {generatingImage && (
+                <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              )}
               {generatingImage ? "Generating image…" : "Generate image"}
             </button>
             {getMockupUrls(scene).length > 0 && (
@@ -344,15 +378,32 @@ export default function SceneCard({
           </div>
         )}
         {scene.veo_prompt?.trim() && (
-          <button
-            type="button"
-            onClick={handleGenerateVideo}
-            disabled={generatingVideo || !(getMockupUrls(scene)[0] || scene.generated_image_url)}
-            title={!(getMockupUrls(scene)[0] || scene.generated_image_url) ? "Attach mockup or generate image first" : undefined}
-            className="w-full rounded border border-brand bg-brand/20 px-2 py-1.5 text-xs font-medium text-white hover:bg-brand/40 disabled:opacity-50"
-          >
-            {generatingVideo ? "Generating video…" : "Generate video"}
-          </button>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-zinc-500 whitespace-nowrap">Duration:</label>
+              <select
+                value={scene.video_duration_seconds ?? 8}
+                onChange={(e) => update({ video_duration_seconds: Number(e.target.value) })}
+                className="rounded border border-border bg-surface px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none"
+              >
+                <option value={4}>4 s</option>
+                <option value={6}>6 s</option>
+                <option value={8}>8 s</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateVideo}
+              disabled={generatingVideo || !(getMockupUrls(scene)[0] || scene.generated_image_url)}
+              title={!(getMockupUrls(scene)[0] || scene.generated_image_url) ? "Attach mockup or generate image first" : undefined}
+              className="flex w-full items-center justify-center gap-2 rounded border border-brand bg-brand/20 px-2 py-1.5 text-xs font-medium text-white hover:bg-brand/40 disabled:opacity-70"
+            >
+              {generatingVideo && (
+                <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
+              {generatingVideo ? "Generating video…" : "Generate video"}
+            </button>
+          </div>
         )}
         <div>
           <label className="block text-xs text-zinc-500 mb-0.5">Veo prompt</label>
