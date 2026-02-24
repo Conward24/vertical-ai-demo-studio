@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const DEFAULT_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+function getUploadDir() {
+  const mount = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  return mount ? path.join(mount, "uploads") : DEFAULT_UPLOAD_DIR;
+}
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
@@ -30,11 +34,12 @@ export async function POST(request: NextRequest) {
     }
     const ext = path.extname(file.name) || (file.type === "image/png" ? ".png" : ".jpg");
     const name = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-    await mkdir(UPLOAD_DIR, { recursive: true });
+    const uploadDir = getUploadDir();
+    await mkdir(uploadDir, { recursive: true });
     const bytes = await file.arrayBuffer();
-    const outPath = path.join(UPLOAD_DIR, name);
+    const outPath = path.join(uploadDir, name);
     await writeFile(outPath, Buffer.from(bytes));
-    const url = `/uploads/${name}`;
+    const url = `/api/uploads/${name}`;
     return NextResponse.json({ url });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Upload failed";

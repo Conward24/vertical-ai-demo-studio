@@ -280,21 +280,21 @@ export default function SceneCard({
             placeholder="e.g. Same layout with warmer lighting, or: UI screen on a desk at night"
           />
         </div>
-        {(scene.mockup_required || scene.attached_mockup_url) && (
+        {scene.nano_prompt?.trim() && (
           <div>
             <button
               type="button"
               onClick={handleGenerateImage}
-              disabled={generatingImage || !scene.nano_prompt?.trim()}
+              disabled={generatingImage}
               className="w-full rounded bg-brand px-2 py-2 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {generatingImage ? "Generating image…" : "Generate image"}
             </button>
-            {!scene.nano_prompt?.trim() && (
-              <p className="text-[10px] text-amber-400/90 mt-0.5">Enter a prompt above first.</p>
-            )}
-            {scene.attached_mockup_url && scene.nano_prompt?.trim() && (
+            {scene.attached_mockup_url && (
               <p className="text-[10px] text-zinc-500 mt-0.5">Uses your mockup + prompt.</p>
+            )}
+            {scene.referenceImageUrl && !scene.attached_mockup_url && (
+              <p className="text-[10px] text-zinc-500 mt-0.5">Uses character reference + prompt.</p>
             )}
           </div>
         )}
