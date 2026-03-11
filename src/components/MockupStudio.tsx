@@ -61,7 +61,7 @@ export default function MockupStudio({ mockups, onMockupsChange }: MockupStudioP
         <h2 className="text-lg font-semibold text-white">Mockups</h2>
       </div>
       <p className="text-xs text-zinc-500 mb-4">
-        Bulk upload mockup images (screens, device frames, UI). When you <strong className="text-zinc-400">Generate scenes</strong>, the AI will look at these images and assign which mockup fits which scene—no typing required.
+        Bulk upload mockup images (screens, device frames, UI). When you <strong className="text-zinc-400">Generate scenes</strong>, the AI picks which mockup fits which scene and <strong className="text-zinc-400">auto-attaches</strong> them to the storyboard—no need to reattach or assign manually.
       </p>
       {needsDeploy && (
         <p className="text-xs text-amber-400/90 mb-3">

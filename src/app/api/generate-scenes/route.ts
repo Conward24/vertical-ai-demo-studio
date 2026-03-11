@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const parts: string[] = [`You are receiving ${images.length} image(s) with this request. Look at them.`];
     if (numMockups > 0) {
       parts.push(
-        `Images 0 to ${numMockups - 1} (0-based) are MOCKUP screens or device frames. Assign which mockup fits which scene by what you see. Set mockup_index (0-based number) on each scene where mockup_required is true.`
+        `Images 0 to ${numMockups - 1} (0-based) are MOCKUP screens or device frames. For every scene with mockup_required true, you must set mockup_index (0-based) to the mockup that best fits that scene. The app will auto-attach that mockup to the scene—no manual step.`
       );
     }
     if (numCharacters > 0) {
@@ -104,7 +104,9 @@ Producer persona: ${persona.name}
 ${brandMetadata && Object.keys(brandMetadata).length > 0 ? `Brand: ${JSON.stringify(brandMetadata)}` : ""}
 ${imageContext}
 
-Output a JSON array of scene objects. Each object must have: scene_number, title, purpose, mockup_required (boolean), uses_character (boolean), mockup_index (number, 0-based, only when mockup_required), character_index (number, 0-based, only when uses_character), nano_prompt (string), veo_prompt (string), vo_line_1 (string), vo_line_2 (string), on_screen_text (string), audio_direction (string), estimated_cost (number). Return only the JSON array, no other text or markdown.`;
+Output a single JSON object (no markdown or extra text) with:
+- "scenes": array of scene objects. Each scene: scene_number, title, purpose, mockup_required (boolean), uses_character (boolean), mockup_index (0-based when mockup_required), character_index (0-based when uses_character), nano_prompt, veo_prompt, vo_line_1, vo_line_2, on_screen_text, audio_direction, estimated_cost (number).
+${numCharacters === 0 ? '- "proposed_characters": array of character definitions when the storyboard needs recurring characters. Each item: { "role_label": string, "nano_prompt": string, "anchor_description": string }. Set character_index on scenes that use a character to the index in this array (0-based).' : "Do not include proposed_characters (character reference images were provided); set character_index on scenes to the 0-based index in that provided list."}`;
 
   try {
     const replicate = new Replicate({ auth: apiToken });
@@ -133,14 +135,33 @@ Output a JSON array of scene objects. Each object must have: scene_number, title
     let jsonStr = raw.trim();
     const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (match) jsonStr = match[1].trim();
-    const scenes = JSON.parse(jsonStr);
-    if (!Array.isArray(scenes)) {
+    const parsed: unknown = JSON.parse(jsonStr);
+
+    let scenesArray: Record<string, unknown>[];
+    let proposedCharacters: { role_label: string; nano_prompt: string; anchor_description: string }[] = [];
+
+    if (Array.isArray(parsed)) {
+      scenesArray = parsed;
+    } else if (parsed && typeof parsed === "object" && "scenes" in parsed && Array.isArray((parsed as { scenes: unknown }).scenes)) {
+      scenesArray = (parsed as { scenes: Record<string, unknown>[] }).scenes;
+      const rawProposed = (parsed as { proposed_characters?: unknown }).proposed_characters;
+      if (Array.isArray(rawProposed)) {
+        proposedCharacters = rawProposed
+          .filter((p): p is Record<string, unknown> => p != null && typeof p === "object")
+          .map((p) => ({
+            role_label: String(p.role_label ?? ""),
+            nano_prompt: String(p.nano_prompt ?? ""),
+            anchor_description: String(p.anchor_description ?? ""),
+          }));
+      }
+    } else {
       return NextResponse.json(
-        { error: "Response was not a JSON array" },
+        { error: "Response was not a JSON object with 'scenes' array or a JSON array" },
         { status: 502 }
       );
     }
-    const normalized = scenes.map((s: Record<string, unknown>, i: number) => ({
+
+    const normalized = scenesArray.map((s: Record<string, unknown>, i: number) => ({
       scene_number: typeof s.scene_number === "number" ? s.scene_number : i + 1,
       title: String(s.title ?? `Scene ${i + 1}`),
       purpose: String(s.purpose ?? ""),
@@ -160,10 +181,12 @@ Output a JSON array of scene objects. Each object must have: scene_number, title
       version: 1,
       video_duration_seconds: 8,
     }));
+
     return NextResponse.json({
       scenes: normalized,
       mockupImageUrls: mockupUrls,
       characterIds: body.characterIds ?? [],
+      proposedCharacters: proposedCharacters.length > 0 ? proposedCharacters : undefined,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";

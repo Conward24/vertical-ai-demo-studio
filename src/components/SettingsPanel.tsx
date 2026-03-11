@@ -19,10 +19,11 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
 
       <div>
         <label className="block text-sm text-zinc-400 mb-2">Runtime system prompt (Gemini)</label>
+        <p className="text-xs text-zinc-500 mb-1">Includes specialist instructions for NanoBanana, Veo, and voiceover. Edit to customize or reset to default.</p>
         <textarea
           value={settings.runtime_system_prompt}
           onChange={(e) => update({ runtime_system_prompt: e.target.value })}
-          rows={8}
+          rows={14}
           className="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-zinc-200 font-mono focus:border-brand focus:outline-none resize-y"
         />
         <button

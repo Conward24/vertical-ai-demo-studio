@@ -186,7 +186,21 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || data.details || "Generation failed");
       const rawScenes = (data.scenes ?? []) as (Scene & { mockup_index?: number; character_index?: number })[];
       const mockupImageUrls = (data.mockupImageUrls ?? mockupUrls) as string[];
-      const resolvedCharacterIds = (data.characterIds ?? characterIds) as string[];
+      const proposedCharacters = (data.proposedCharacters ?? []) as { role_label: string; nano_prompt: string; anchor_description: string }[];
+
+      const newCharacters =
+        proposedCharacters.length > 0
+          ? proposedCharacters.map((p, i) => ({
+              id: `char-proposed-${Date.now()}-${i}`,
+              role_label: p.role_label || "",
+              nano_prompt: p.nano_prompt || "",
+              anchor_description: p.anchor_description || "",
+              approved: false,
+            }))
+          : [];
+      const newCharacterIds = newCharacters.map((c) => c.id);
+      const resolvedCharacterIds =
+        characterUrls.length > 0 ? (data.characterIds ?? characterIds) : newCharacterIds;
 
       const scenes: Scene[] = rawScenes.map((s) => {
         const { mockup_index, character_index, ...rest } = s;
@@ -200,7 +214,24 @@ export default function Home() {
         return scene;
       });
 
-      updateScenes(scenes.length ? scenes : project.scenes);
+      const pricing = settings?.pricing;
+      const imgPerScene = pricing?.recommended_images_per_scene ?? 2.5;
+      const withCosts =
+        pricing && scenes.length
+          ? updateSceneCosts(scenes, pricing, imgPerScene)
+          : scenes;
+
+      persistProject((prev) => {
+        if (!prev) return prev;
+        const mergedCharacters =
+          newCharacters.length > 0 ? [...(prev.characters ?? []), ...newCharacters] : prev.characters ?? [];
+        return {
+          ...prev,
+          scenes: withCosts.length ? withCosts : prev.scenes,
+          characters: mergedCharacters,
+        };
+      });
+      if (newCharacters.length > 0) setActiveTab("characters");
       setGenerateError(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to generate scenes";

@@ -72,6 +72,9 @@ export default function CharacterStudio({
       </div>
       <p className="text-xs text-zinc-500 mb-4">
         Add characters and <strong className="text-zinc-400">upload a reference image</strong> for each. Scenes with &quot;Character&quot; checked will use this image so the AI matches the same person.
+        {characters.some((c) => c.id.startsWith("char-proposed-")) && (
+          <span className="block mt-1 text-brand/90">Characters proposed by the storyboard are below; edit prompts and upload references, then approve.</span>
+        )}
       </p>
       <div className="space-y-4">
         {characters.map((c) => (
@@ -132,8 +135,8 @@ export default function CharacterStudio({
               <textarea
                 value={c.nano_prompt}
                 onChange={(e) => update(c.id, { nano_prompt: e.target.value })}
-                rows={2}
-                className="w-full rounded border border-border bg-surface-raised px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-none"
+                rows={3}
+                className="w-full rounded border border-border bg-surface-raised px-2 py-1 text-xs text-zinc-300 focus:border-brand focus:outline-none resize-y min-h-[4rem]"
                 placeholder="Prompt for reference image generation (or describe the attached image)"
               />
             </div>
