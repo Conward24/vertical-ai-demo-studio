@@ -12,24 +12,30 @@ function getMockupUrls(scene: Scene): string[] {
 
 interface SceneCardProps {
   scene: Scene;
+  sceneIndex?: number;
+  totalScenes?: number;
   onUpdate: (scene: Scene) => void;
   referenceImageUrl?: string | null;
   characters?: ReferenceCharacter[];
   mockups?: ProjectMockup[];
   onImageGenerated?: () => void;
   onVideoGenerated?: (durationSeconds?: number) => void;
+  onGenerateImagesFromIndex?: (index: number) => void;
   isDragging?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
 
 export default function SceneCard({
   scene,
+  sceneIndex,
+  totalScenes,
   onUpdate,
   referenceImageUrl,
   characters = [],
   mockups = [],
   onImageGenerated,
   onVideoGenerated,
+  onGenerateImagesFromIndex,
   isDragging,
   dragHandleProps,
 }: SceneCardProps) {
@@ -432,6 +438,16 @@ export default function SceneCard({
               {generatingVideo ? "Generating video…" : "Generate video"}
             </button>
           </div>
+        )}
+        {onGenerateImagesFromIndex && typeof sceneIndex === "number" && (
+          <button
+            type="button"
+            onClick={() => onGenerateImagesFromIndex(sceneIndex)}
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1.5 text-xs text-zinc-400 hover:bg-surface-raised hover:text-zinc-300"
+            title="Generate images for this scene and all following (uses Continuity if enabled in toolbar)"
+          >
+            Regenerate from here
+          </button>
         )}
         <div>
           <label className="block text-xs text-zinc-500 mb-0.5">Veo prompt</label>

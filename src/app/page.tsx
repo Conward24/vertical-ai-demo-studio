@@ -49,6 +49,7 @@ export default function Home() {
   const [showWizard, setShowWizard] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generatingAllImages, setGeneratingAllImages] = useState(false);
 
   useEffect(() => {
     const p = loadProject();
@@ -242,6 +243,77 @@ export default function Home() {
     }
   }, [project, settings, updateScenes]);
 
+  const handleGenerateAllImages = useCallback(
+    async (useContinuity: boolean, startIndex: number = 0) => {
+      if (!project) return;
+      const scenes = project.scenes ?? [];
+      if (scenes.length === 0) return;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const toAbsolute = (u: string) => (u.startsWith("http") ? u : `${origin}${u}`);
+      const getMockupUrls = (s: Scene): string[] => {
+        if (s.attached_mockup_urls?.length) return s.attached_mockup_urls;
+        return s.attached_mockup_url ? [s.attached_mockup_url] : [];
+      };
+      const getCharacterRefUrl = (s: Scene): string | null => {
+        const chars = project.characters ?? [];
+        if (s.uses_character && s.character_id) {
+          const c = chars.find((ch) => ch.id === s.character_id);
+          return c?.reference_image_url ?? null;
+        }
+        const first = chars.find((c) => c.reference_image_url);
+        return first?.reference_image_url ?? null;
+      };
+
+      setGeneratingAllImages(true);
+      setGenerateError(null);
+      let currentScenes = [...scenes];
+      try {
+        for (let i = startIndex; i < currentScenes.length; i++) {
+          const scene = currentScenes[i];
+          if (!scene.nano_prompt?.trim()) {
+            const next = [...currentScenes];
+            next[i] = { ...scene, comment: (scene.comment || "").concat(" [Skipped: no nano_prompt]") };
+            currentScenes = next;
+            updateScenes(currentScenes);
+            continue;
+          }
+          const refs: string[] = [];
+          if (useContinuity && i > 0 && currentScenes[i - 1].generated_image_url) {
+            const prev = currentScenes[i - 1].generated_image_url!;
+            refs.push(prev.startsWith("http") ? prev : toAbsolute(prev));
+          }
+          refs.push(...getMockupUrls(scene).map(toAbsolute));
+          const charUrl = getCharacterRefUrl(scene);
+          if (charUrl) refs.push(toAbsolute(charUrl));
+
+          const body: { prompt: string; reference_image_urls?: string[] } = { prompt: scene.nano_prompt.trim() };
+          if (refs.length > 0) body.reference_image_urls = refs;
+          const res = await fetch("/api/generate-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.details || data.error || "Image generation failed");
+          if (data.url) {
+            const next = [...currentScenes];
+            next[i] = { ...currentScenes[i], generated_image_url: data.url };
+            currentScenes = next;
+            updateScenes(currentScenes);
+            handleImageGenerated();
+          }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Generate all images failed";
+        setGenerateError(msg);
+        setTimeout(() => setGenerateError(null), 8000);
+      } finally {
+        setGeneratingAllImages(false);
+      }
+    },
+    [project, updateScenes, handleImageGenerated]
+  );
+
   const loadSample = useCallback(() => {
     persistProject(loadSampleProject());
     setShowWizard(false);
@@ -365,6 +437,7 @@ export default function Home() {
               </div>
             )}
             <Storyboard
+              project={project}
               scenes={project.scenes ?? []}
               characters={project.characters}
               mockups={project.mockups ?? []}
@@ -373,6 +446,8 @@ export default function Home() {
               onImageGenerated={handleImageGenerated}
               onVideoGenerated={handleVideoGenerated}
               generating={generating}
+              onGenerateAllImages={handleGenerateAllImages}
+              generatingAllImages={generatingAllImages}
             />
           </div>
         )}
