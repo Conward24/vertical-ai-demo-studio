@@ -164,15 +164,55 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
         jsonStr = jsonStr.slice(firstBrace, lastBrace + 1).trim();
       }
     }
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (e) {
       // Try to fix common JSON issues from the model (e.g. trailing commas).
-      const relaxed = jsonStr
-        // Remove trailing commas before } or ]
-        .replace(/,\s*([}\]])/g, "$1");
-      parsed = JSON.parse(relaxed);
+      const relaxed = jsonStr.replace(/,\s*([}\]])/g, "$1");
+      try {
+        parsed = JSON.parse(relaxed);
+      } catch (e2) {
+        // As a last resort, try to salvage the scenes array manually:
+        // find the first top-level [...] block and parse each { ... } object inside it.
+        const text = relaxed || jsonStr;
+        const firstBracket = text.indexOf("[");
+        const lastBracket = text.lastIndexOf("]");
+        if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
+          throw e2;
+        }
+        const arrayBody = text.slice(firstBracket + 1, lastBracket);
+        const items: Record<string, unknown>[] = [];
+        let depth = 0;
+        let current = "";
+        for (let i = 0; i < arrayBody.length; i++) {
+          const ch = arrayBody[i];
+          if (ch === "{") {
+            depth++;
+          }
+          if (depth > 0) {
+            current += ch;
+          }
+          if (ch === "}") {
+            depth--;
+            if (depth === 0) {
+              try {
+                const objStr = current.replace(/,\s*([}\]])/g, "$1");
+                const obj = JSON.parse(objStr) as Record<string, unknown>;
+                items.push(obj);
+              } catch {
+                // skip malformed object
+              }
+              current = "";
+            }
+          }
+        }
+        if (!items.length) {
+          throw e2;
+        }
+        parsed = { scenes: items };
+      }
     }
 
     let scenesArray: Record<string, unknown>[];
