@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonrepair } from "jsonrepair";
 import Replicate from "replicate";
 import { withReplicateRetry } from "@/lib/replicateRetry";
 
@@ -9,6 +10,93 @@ function isPublicUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Find the "scenes" array substring in text (the first key named "scenes" value).
+ * Returns the slice from the opening [ to the matching ], or null.
+ */
+function findScenesArraySubstring(text: string): string | null {
+  const keyPattern = /"scenes"\s*:/;
+  const match = keyPattern.exec(text);
+  if (!match) return null;
+  let i = match.index + match[0].length;
+  while (i < text.length && /[\s\n\r\t]/.test(text[i])) i++;
+  if (i >= text.length || text[i] !== "[") return null;
+  const arrayStart = i;
+  i++;
+  let depth = 1; // we're inside the opening [
+  let inString = false;
+  let escapeNext = false;
+  while (i < text.length) {
+    const ch = text[i];
+    if (escapeNext) {
+      escapeNext = false;
+      i++;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\\") escapeNext = true;
+      else if (ch === '"') inString = false;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      i++;
+      continue;
+    }
+    if (ch === "[") depth++;
+    else if (ch === "]") {
+      depth--;
+      if (depth === 0) return text.slice(arrayStart, i + 1);
+    }
+    i++;
+  }
+  return null;
+}
+
+/** Remove trailing commas before } or ] only when outside double-quoted strings. */
+function removeTrailingCommasOutsideStrings(json: string): string {
+  let out = "";
+  let i = 0;
+  let inString = false;
+  let escapeNext = false;
+  while (i < json.length) {
+    const ch = json[i];
+    if (escapeNext) {
+      out += ch;
+      escapeNext = false;
+      i++;
+      continue;
+    }
+    if (inString) {
+      out += ch;
+      if (ch === "\\") escapeNext = true;
+      else if (ch === '"') inString = false;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      out += ch;
+      inString = true;
+      i++;
+      continue;
+    }
+    // Outside string: remove comma when followed by optional whitespace and then } or ]
+    if (ch === ",") {
+      let j = i + 1;
+      while (j < json.length && /[\s\n\r]/.test(json[j])) j++;
+      if (j < json.length && (json[j] === "}" || json[j] === "]")) {
+        out += json.slice(i + 1, j); // skip comma, keep whitespace
+        i = j;
+        continue;
+      }
+    }
+    out += ch;
+    i++;
+  }
+  return out;
 }
 
 export interface GenerateScenesBody {
@@ -169,20 +257,26 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
     try {
       parsed = JSON.parse(jsonStr);
     } catch (e) {
-      // Try to fix common JSON issues from the model (e.g. trailing commas).
-      const relaxed = jsonStr.replace(/,\s*([}\]])/g, "$1");
       try {
-        parsed = JSON.parse(relaxed);
-      } catch (e2) {
-        // As a last resort, salvage the scenes array with string-aware brace counting
-        // so that { } inside prompt strings don't break extraction.
-        const text = relaxed || jsonStr;
-        const firstBracket = text.indexOf("[");
-        const lastBracket = text.lastIndexOf("]");
-        if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
-          throw e2;
-        }
-        const arrayBody = text.slice(firstBracket + 1, lastBracket);
+        const repaired = jsonrepair(jsonStr);
+        parsed = JSON.parse(repaired);
+      } catch (e1) {
+        const relaxed = removeTrailingCommasOutsideStrings(jsonStr);
+        try {
+          parsed = JSON.parse(relaxed);
+        } catch (e2) {
+          // Last resort: extract only the "scenes" array (not proposed_characters), then parse each object.
+          const text = relaxed || jsonStr;
+          let arrayBody: string;
+          const scenesArrayStr = findScenesArraySubstring(text);
+          if (scenesArrayStr) {
+            arrayBody = scenesArrayStr.slice(1, -1);
+          } else {
+            const firstBracket = text.indexOf("[");
+            const lastBracket = text.lastIndexOf("]");
+            if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) throw e2;
+            arrayBody = text.slice(firstBracket + 1, lastBracket);
+          }
         const items: Record<string, unknown>[] = [];
         let depth = 0;
         let current = "";
@@ -212,7 +306,7 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
             depth--;
             if (depth === 0) {
               try {
-                const objStr = current.replace(/,\s*([}\]])/g, "$1");
+                const objStr = removeTrailingCommasOutsideStrings(current);
                 const obj = JSON.parse(objStr) as Record<string, unknown>;
                 items.push(obj);
               } catch {
@@ -227,6 +321,7 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
         }
         parsed = { scenes: items };
       }
+    }
     }
 
     let scenesArray: Record<string, unknown>[];

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "jsonrepair": "^3.13.3",
     "next": "14.2.35",
     "replicate": "^0.34.0",
     "react": "^18.3.1",
