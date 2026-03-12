@@ -150,11 +150,19 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
       );
     }
     let jsonStr = raw.trim();
-    // Gemini sometimes wraps JSON in ```json ... ``` or ```JSON ... ``` fences, possibly with extra text.
-    // Strip any fenced block (case-insensitive) if present; otherwise, fall back to raw.
+    // Gemini may return prose + fenced JSON or just raw JSON. Try, in order:
+    // 1) First fenced block (```json ... ```) contents
+    // 2) First {...} block in the string
+    // 3) Raw string as-is
     const fenceMatch = jsonStr.match(/```[a-zA-Z]*\s*([\s\S]*?)```/);
     if (fenceMatch) {
       jsonStr = fenceMatch[1].trim();
+    } else {
+      const firstBrace = jsonStr.indexOf("{");
+      const lastBrace = jsonStr.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1).trim();
+      }
     }
     const parsed: unknown = JSON.parse(jsonStr);
 
