@@ -104,8 +104,8 @@ Producer persona: ${persona.name}
 ${brandMetadata && Object.keys(brandMetadata).length > 0 ? `Brand: ${JSON.stringify(brandMetadata)}` : ""}
 ${imageContext}
 
-Output a single JSON object (no markdown or extra text) with:
-- "scenes": array of scene objects. Each scene: scene_number, title, purpose, mockup_required (boolean), uses_character (boolean), mockup_index (0-based when mockup_required), character_index (0-based when uses_character), nano_prompt, veo_prompt, vo_line_1, vo_line_2, on_screen_text, audio_direction, estimated_cost (number).
+Output exactly one valid JSON object (no markdown, no code fences, no trailing commas). Produce exactly ${projectConfig.estimated_scene_count} scenes.
+- "scenes": array of ${projectConfig.estimated_scene_count} scene objects. Each scene must have ALL of: scene_number, title, purpose, mockup_required (boolean), uses_character (boolean), mockup_index (0-based when mockup_required), character_index (0-based when uses_character), nano_prompt (string), veo_prompt (string), vo_line_1 (string), vo_line_2 (string), on_screen_text (string), audio_direction (string), estimated_cost (number). Do not omit veo_prompt or voiceover fields.
 ${numCharacters === 0 ? '- "proposed_characters": array of character definitions when the storyboard needs recurring characters. Each item: { "role_label": string, "nano_prompt": string, "anchor_description": string }. Set character_index on scenes that use a character to the index in this array (0-based).' : "Do not include proposed_characters (character reference images were provided); set character_index on scenes to the 0-based index in that provided list."}`;
 
   try {
@@ -114,7 +114,7 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
 
     const input: Record<string, unknown> = {
       prompt: fullPrompt,
-      system_instruction: "You are a vertical demo video storyboard producer. Respond only with valid JSON.",
+      system_instruction: "You are a vertical demo video storyboard producer. Output ONLY a single valid JSON object—no markdown, no code fences (no ```), no trailing commas, no text before or after. Produce exactly the number of scenes requested. Every scene object must include: scene_number, title, purpose, mockup_required, uses_character, mockup_index (if mockup_required), character_index (if uses_character), nano_prompt, veo_prompt, vo_line_1, vo_line_2, on_screen_text, audio_direction, estimated_cost.",
       max_output_tokens: 8192,
     };
     if (images.length > 0) {
@@ -174,8 +174,8 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
       try {
         parsed = JSON.parse(relaxed);
       } catch (e2) {
-        // As a last resort, try to salvage the scenes array manually:
-        // find the first top-level [...] block and parse each { ... } object inside it.
+        // As a last resort, salvage the scenes array with string-aware brace counting
+        // so that { } inside prompt strings don't break extraction.
         const text = relaxed || jsonStr;
         const firstBracket = text.indexOf("[");
         const lastBracket = text.lastIndexOf("]");
@@ -186,14 +186,28 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
         const items: Record<string, unknown>[] = [];
         let depth = 0;
         let current = "";
+        let inDoubleQuote = false;
+        let escapeNext = false;
         for (let i = 0; i < arrayBody.length; i++) {
           const ch = arrayBody[i];
-          if (ch === "{") {
-            depth++;
+          if (escapeNext) {
+            if (depth > 0) current += ch;
+            escapeNext = false;
+            continue;
           }
-          if (depth > 0) {
-            current += ch;
+          if (inDoubleQuote) {
+            if (depth > 0) current += ch;
+            if (ch === "\\") escapeNext = true;
+            else if (ch === '"') inDoubleQuote = false;
+            continue;
           }
+          if (ch === '"') {
+            inDoubleQuote = true;
+            if (depth > 0) current += ch;
+            continue;
+          }
+          if (ch === "{") depth++;
+          if (depth > 0) current += ch;
           if (ch === "}") {
             depth--;
             if (depth === 0) {
@@ -235,6 +249,17 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
     } else {
       return NextResponse.json(
         { error: "Response was not a JSON object with 'scenes' array or a JSON array" },
+        { status: 502 }
+      );
+    }
+
+    const requested = Math.max(1, Number(projectConfig.estimated_scene_count) || 10);
+    if (requested >= 5 && scenesArray.length < Math.min(5, Math.ceil(requested * 0.4))) {
+      return NextResponse.json(
+        {
+          error: "Generation failed",
+          details: `Model returned ${scenesArray.length} scenes but ${requested} were requested. Please try Generate scenes again.`,
+        },
         { status: 502 }
       );
     }
