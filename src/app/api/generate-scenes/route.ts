@@ -121,11 +121,28 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
       input.images = images;
     }
 
-    const output = await withReplicateRetry(() =>
-      replicate.run("google/gemini-2.5-flash", { input })
-    );
+    let raw: string;
+    try {
+      const output = await withReplicateRetry(() =>
+        replicate.run("google/gemini-2.5-flash", { input })
+      );
+      raw = Array.isArray(output) ? output.join("") : String(output ?? "");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e ?? "");
+      // If Gemini fails because some /api/uploads/* URLs are 404 (stale uploads on Railway),
+      // retry once without any images so storyboard generation still works.
+      if (images.length > 0 && message.includes("/api/uploads/") && message.includes("404")) {
+        const inputNoImages: Record<string, unknown> = { ...input };
+        delete inputNoImages.images;
+        const output = await withReplicateRetry(() =>
+          replicate.run("google/gemini-2.5-flash", { input: inputNoImages })
+        );
+        raw = Array.isArray(output) ? output.join("") : String(output ?? "");
+      } else {
+        throw e;
+      }
+    }
 
-    const raw = Array.isArray(output) ? output.join("") : String(output ?? "");
     if (!raw.trim()) {
       return NextResponse.json(
         { error: "Empty response from model" },
