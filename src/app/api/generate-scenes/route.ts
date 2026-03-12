@@ -133,8 +133,12 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
       );
     }
     let jsonStr = raw.trim();
-    const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (match) jsonStr = match[1].trim();
+    // Gemini sometimes wraps JSON in ```json ... ``` or ```JSON ... ``` fences, possibly with extra text.
+    // Strip any fenced block (case-insensitive) if present; otherwise, fall back to raw.
+    const fenceMatch = jsonStr.match(/```[a-zA-Z]*\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+      jsonStr = fenceMatch[1].trim();
+    }
     const parsed: unknown = JSON.parse(jsonStr);
 
     let scenesArray: Record<string, unknown>[];

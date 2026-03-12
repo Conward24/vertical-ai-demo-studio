@@ -87,8 +87,14 @@ You don’t need all 18 to run the trial. With fewer mockups, the generator will
 
 5. Review and edit scenes (and proposed character prompts) as needed.
 
+6. **Add scenes from description (optional)**  
+   Use **Add from description** in the Storyboard toolbar to insert extra scenes (e.g. transition cards) without re-running the full generator. Describe the scene in the modal, choose **Insert after** (e.g. “After Scene 4”), and click **Add scene**. The AI will generate title, prompts, and VO for that one scene.
+
+7. **Generate all images**  
+   When you’re ready to create images for every scene: turn on **Continuity** if you want each scene to use the previous scene’s generated image as a reference (better background/style consistency), then click **Generate all images**. Scenes run in order; missing mockups are fine—the generator uses the prompt (and previous image when Continuity is on). To re-run from a specific scene onward, use **Regenerate from here** on that scene card (uses the same Continuity setting).
+
 ---
 
-## 7. Note on transition / chapter cards
+## 8. Note on transition / chapter cards
 
-Your Enterprise Demo Convo used **3 transition cards** (Member Experience, Care Team Insight, The Platform) between acts. The video objective above asks the generator to “include short chapter or transition moments between acts if the scene count allows.” So the model may output 18 scenes that include 2–3 title-card-style scenes, or you can raise **Estimated scene count** to **20** and paste the same objective so it has room for three explicit transition beats. Either way, the same form inputs above apply; only the number is 18 vs 20.
+Your Enterprise Demo Convo used **3 transition cards** (Member Experience, Care Team Insight, The Platform) between acts. The video objective above asks the generator to “include short chapter or transition moments between acts if the scene count allows.” So the model may output 18 scenes that include 2–3 title-card-style scenes, or you can raise **Estimated scene count** to **20** and paste the same objective so it has room for three explicit transition beats. You can also add transition cards after the fact: use **Add from description** (e.g. "Title card: Member Experience. Warm gradient, lotus watermark, no person") and choose the right **Insert after** position. Either way, the same form inputs above apply; only the number is 18 vs 20.

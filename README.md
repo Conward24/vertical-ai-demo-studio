@@ -93,6 +93,31 @@ src/
     index.ts
 ```
 
+## Future roadmap (storage, collaboration, media durability)
+
+This is a high-level backlog of requested features so they are easy to revisit later.
+
+- **Multi-project library**
+  - Store **multiple named projects** instead of a single `vertical-ai-demo-studio-project` entry in `localStorage`.
+  - Simple project list UI: “Recent projects”, rename, duplicate, delete.
+  - Ability to switch between projects without exporting/importing JSON.
+
+- **Shareable project bundles**
+  - Export a **bundle** that includes:
+    - Structured project JSON (scenes, prompts, characters, costs, metadata).
+    - A manifest of **mockup** and **generated image/video** URLs (with types and roles).
+  - Later iteration: option to upload media to a persistent bucket (e.g. S3/GCS/Drive connector) so collaborators see the same assets instead of expired Replicate links.
+  - Import should restore:
+    - Full storyboard state (including character proposals/approvals).
+    - Any media whose URLs are still reachable (or downloaded and rehosted).
+
+- **Cloud / team collaboration (future)**
+  - Move from purely-local `localStorage` to an optional **server-backed project store**.
+  - Each project gets a stable ID/slug so sharing a URL can load the same project for collaborators (read-only or editable).
+  - Optional auth later (GitHub/Google) to support per-user project lists and permissions.
+
+These are *not* implemented yet; they’re captured here so we can design APIs, storage (e.g. S3 vs Drive vs Railway volume), and collaboration flows in a future pass.
+
 ## Deploy (so mockup/character uploads work with Replicate)
 
 The app needs a **public URL** so Replicate can fetch your uploaded mockup and character images. Two options:

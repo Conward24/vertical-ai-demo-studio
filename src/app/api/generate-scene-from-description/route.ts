@@ -104,8 +104,12 @@ Output a single JSON object with keys: title, purpose, mockup_required, uses_cha
       );
     }
     let jsonStr = raw.trim();
-    const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (match) jsonStr = match[1].trim();
+    // Gemini sometimes wraps JSON in ```json ... ``` or ```JSON ... ``` fences, possibly with extra text.
+    // Strip any fenced block (case-insensitive) if present; otherwise, fall back to raw.
+    const fenceMatch = jsonStr.match(/```[a-zA-Z]*\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+      jsonStr = fenceMatch[1].trim();
+    }
     const scene = JSON.parse(jsonStr) as Record<string, unknown>;
 
     const sceneNumber = typeof nextSceneNumber === "number" && nextSceneNumber >= 1 ? nextSceneNumber : 1;

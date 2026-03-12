@@ -15,6 +15,7 @@ interface SceneCardProps {
   sceneIndex?: number;
   totalScenes?: number;
   onUpdate: (scene: Scene) => void;
+  onDelete?: (index: number) => void;
   referenceImageUrl?: string | null;
   characters?: ReferenceCharacter[];
   mockups?: ProjectMockup[];
@@ -30,6 +31,7 @@ export default function SceneCard({
   sceneIndex,
   totalScenes,
   onUpdate,
+  onDelete,
   referenceImageUrl,
   characters = [],
   mockups = [],
@@ -220,15 +222,27 @@ export default function SceneCard({
         {...dragHandleProps}
       >
         <span className="text-xs font-mono text-zinc-500">#{scene.scene_number}</span>
-        <select
-          value={scene.status}
-          onChange={(e) => update({ status: e.target.value as SceneStatus })}
-          className="text-xs rounded border border-border bg-surface px-2 py-1 text-zinc-300 focus:border-brand focus:outline-none"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={scene.status}
+            onChange={(e) => update({ status: e.target.value as SceneStatus })}
+            className="text-xs rounded border border-border bg-surface px-2 py-1 text-zinc-300 focus:border-brand focus:outline-none"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {onDelete && typeof sceneIndex === "number" && (totalScenes ?? 0) > 1 && (
+            <button
+              type="button"
+              onClick={() => onDelete(sceneIndex)}
+              className="rounded-full border border-border px-2 py-0.5 text-[10px] text-zinc-500 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500"
+              title="Delete scene"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-3 space-y-2 flex-1 overflow-y-auto scrollbar-thin max-h-96">
         {(scene.attached_mockup_url || getMockupUrls(scene).length > 0 || scene.generated_image_url || scene.generated_video_url) && (

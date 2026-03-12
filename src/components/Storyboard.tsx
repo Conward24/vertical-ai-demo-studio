@@ -21,6 +21,7 @@ function DraggableSceneCard({
   onImageGenerated,
   onVideoGenerated,
   onGenerateImagesFromIndex,
+  onDelete,
 }: {
   scene: Scene;
   index: number;
@@ -33,6 +34,7 @@ function DraggableSceneCard({
   onImageGenerated?: () => void;
   onVideoGenerated?: (durationSeconds?: number) => void;
   onGenerateImagesFromIndex?: (index: number) => void;
+  onDelete?: (index: number) => void;
 }) {
   const [{ isDragging }, ref] = useDrag({
     type: SCENE_TYPE,
@@ -61,6 +63,7 @@ function DraggableSceneCard({
         sceneIndex={index}
         totalScenes={totalScenes}
         onUpdate={onUpdate}
+        onDelete={onDelete}
         referenceImageUrl={referenceImageUrl}
         characters={characters}
         mockups={mockups}
@@ -146,6 +149,18 @@ function StoryboardInner({
     const next = autoSequence(scenes);
     onScenesChange(next);
   }, [scenes, onScenesChange]);
+
+  const deleteSceneAt = useCallback(
+    (index: number) => {
+      if (scenes.length <= 1) return;
+      const next = scenes.filter((_, i) => i !== index).map((s, i) => ({
+        ...s,
+        scene_number: i + 1,
+      }));
+      onScenesChange(next);
+    },
+    [scenes, onScenesChange]
+  );
 
   const addScene = useCallback(() => {
     const nextNum = scenes.length + 1;
@@ -351,6 +366,7 @@ function StoryboardInner({
               onImageGenerated={onImageGenerated}
               onVideoGenerated={onVideoGenerated}
               onGenerateImagesFromIndex={onGenerateAllImages ? handleGenerateImagesFromIndex : undefined}
+              onDelete={deleteSceneAt}
             />
           ))}
         </div>
