@@ -118,7 +118,15 @@ Output a single JSON object with keys: title, purpose, mockup_required, uses_cha
         jsonStr = jsonStr.slice(firstBrace, lastBrace + 1).trim();
       }
     }
-    const scene = JSON.parse(jsonStr) as Record<string, unknown>;
+    let scene: Record<string, unknown>;
+    try {
+      scene = JSON.parse(jsonStr) as Record<string, unknown>;
+    } catch (e) {
+      const relaxed = jsonStr
+        // Remove trailing commas before } or ]
+        .replace(/,\s*([}\]])/g, "$1");
+      scene = JSON.parse(relaxed) as Record<string, unknown>;
+    }
 
     const sceneNumber = typeof nextSceneNumber === "number" && nextSceneNumber >= 1 ? nextSceneNumber : 1;
     const normalized = {

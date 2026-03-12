@@ -164,7 +164,16 @@ ${numCharacters === 0 ? '- "proposed_characters": array of character definitions
         jsonStr = jsonStr.slice(firstBrace, lastBrace + 1).trim();
       }
     }
-    const parsed: unknown = JSON.parse(jsonStr);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      // Try to fix common JSON issues from the model (e.g. trailing commas).
+      const relaxed = jsonStr
+        // Remove trailing commas before } or ]
+        .replace(/,\s*([}\]])/g, "$1");
+      parsed = JSON.parse(relaxed);
+    }
 
     let scenesArray: Record<string, unknown>[];
     let proposedCharacters: { role_label: string; nano_prompt: string; anchor_description: string }[] = [];
